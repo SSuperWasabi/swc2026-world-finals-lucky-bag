@@ -11,10 +11,11 @@
 - **앱을 고치면 끝까지 마무리한다:**
   1. `app/index.html`의 APP_VER와 `app/sw.js`의 CACHE를 함께 올린다.
   2. 전체 테스트(README 목록)를 돌린다.
-  3. 커밋·푸시한다.
-  4. Pages 배포와 PWA 검사를 확인한다(주소 인자 필수).
-  5. handoff 21절·새 절과 WORKLOG를 기록한다.
-  6. 한글로 보고한다.
+  3. **사용자와 사전 테스트·점검을 마친다.** 로컬 서버로 Chrome(필요하면 같은 와이파이의 iPad)에서 확인하게 하고, 사용자가 승인하기 전에는 커밋·푸시하지 않는다(2026-10-18 사용자 지시).
+  4. 승인 뒤 커밋·푸시한다.
+  5. Pages 배포와 PWA 검사를 확인한다(주소 인자 필수).
+  6. handoff 21절·새 절과 WORKLOG를 기록한다.
+  7. 한글로 보고한다.
 - **수정 금지:**
   - `F:\Download\Figure draw app`
   - AE 원본 폴더 `(0709) swc2026_oap_APAC_Final`(작업은 `resource/oap/ae-work/` 사본에서)
