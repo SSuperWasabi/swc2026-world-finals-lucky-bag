@@ -1,60 +1,28 @@
-# SWC2026 APAC Cup Lucky Draw App
+# SWC2026 World Finals Lucky Draw App
 
-Figure Draw v32를 계승한 SWC2026 APAC Cup용 독립 PWA 프로젝트.
+SWC2026 APAC Cup 럭키 드로우 앱(v30)을 계승한 월드 결선용 독립 PWA 프로젝트. 기능·설정·관리자 화면은 그대로 두고 OAP 미디어 템플릿만 월드 결선 버전으로 바꾼다.
 
-- 프로젝트 시작일: 2026-09-23
-- 현재 버전: `swc-apac-v30` / 캐시: `swc2026-apac-lucky-draw-v30`
-- 기반 커밋: `ac2d609cb584ce21ed35a8b32183f80605828791` (Figure Draw v32 기능 + 사용자 확인 문서)
-- 작업 폴더: `F:\Download\SWC2026 APAC Cup_Lucky Draw App`
-- 새 저장소: https://github.com/SSuperWasabi/swc2026-apac-cup-lucky-draw
-- 앱 배포 주소: https://ssuperwasabi.github.io/swc2026-apac-cup-lucky-draw/app/
-- 시작할 때 읽을 문서: [handoff.md](handoff.md)
+- 프로젝트 시작일: 2026-10-30
+- 현재 버전: `swc-wf-v1` / 캐시: `swc2026-world-finals-lucky-draw-v1`
+- 기반: APAC 저장소 main `fd317e9`(앱 `swc-apac-v30`)
+- 작업 폴더: `F:\Download\SWC2026 World Finals_Lucky Draw App`
+- 저장소: https://github.com/SSuperWasabi/swc2026-world-finals-lucky-draw
+- 앱 배포 주소: https://ssuperwasabi.github.io/swc2026-world-finals-lucky-draw/app/
+- 시작할 때 읽을 문서: [handoff.md](handoff.md)(작업 규칙·분리 기준·AE 정리 규칙·교체 진행 표)
 
-## 지금 완료한 범위
+## 앱 기능
+APAC 앱과 같다. 화면 흐름, 추첨 규칙, 배경음악·효과음, 관리자 사용법, 현장 준비 목록은 [docs/apac/handoff-apac.md](docs/apac/handoff-apac.md) 21절에 있다.
 
-초기 구현 `7edb0db`의 GitHub Pages 배포 및 격리 Chrome 오프라인 PWA 검증을 완료했다. v2~v3에서 **소환서 선택 화면을 OAP v8**로, v4에서 **소환서 오픈 화면을 OAP v3**로 교체했다(명세 [choose-v8](docs/oap-spec/choose-v8/README.md), [open-v3](docs/oap-spec/open-v3/README.md)). v5~v8에서 **당첨 화면을 상품별 특별 영상 → 당첨 영상(OAP v5) 구조**로 바꿨다. 두 영상은 관리자에서 상품별로 등록한다([win-v5](docs/oap-spec/win-v5/README.md)). 메인 화면 글꼴은 Unbounded. v10에서 상품을 상급/일반/참가상 3등급으로 나눴고, 모든 상품에 특별 영상·상품 영상을 등록한다(클릭 팝업 영상 삭제). 화면 이동에는 AE 전환 영상을 1.8배속으로 넣었다(선택 → 오픈 제외, [transition](docs/oap-spec/transition/README.md)). v12~v13에서 긴 특별 영상이 11초에 끊기던 문제를 고쳤고, 당첨 효과음을 등급별(스페셜/일반당첨/참가상)로 나눴다. v14에서 메인 타이틀에 검은 소프트 섀도를 넣었고, v15에서 선택 화면 부제를 SWC2026 APAC CUP LUCKY DRAW로 바꿨다. v16에서 BGM 여러 곡 연속 재생, v17에서 대기 영상 연속 순환(셔플 백)을 추가했다. v18~v20에서 전환 영상을 54fps 두 영상 블렌드로 바꿔 iPad 끊김을 없앴다. v21~v23(팀 피드백)에서 RANDOM·AUTO OPEN을 없앴고, SLIDE 박스 B안, 표시 등급 A~H 배지, A·B 축하 화면을 넣었다. v24~v30에서 다음을 추가했다: 관리자 볼륨(BGM·효과음 전체·연출 소리, 실제 출력 검증), 축하 화면 1.8초와 특별 영상 끊김 없는 연결, A·B 축하음 업로드, 여러 파일 한 번에 추가, iPad 축하 화면 재생 개선, 소환서 터치음. 현재 상태와 현장 준비 목록은 [handoff.md](handoff.md) 21절(최신 유지)에 있다. 참가상 결과 카드는 아직 기반 디자인이다.
+관리자 진입: 메인 좌측 상단을 3초 안에 5회 터치. 초기 PIN은 `0000`이며 운영 전에 바꾼다. 새 앱은 미디어 등록 없음, 재고 0, 추첨 기록 없음으로 시작한다.
 
-기존 앱 코드·Git 이력·테스트·로컬 리소스를 복제하고 새 앱 식별자를 분리했다. 기존 앱 저장소와 운영 데이터는 변경하지 않는다. 새 앱은 미디어 등록 없음, 재고 0, 추첨 기록 없음으로 시작한다. 기본 두 상품 행은 등록 안내용 빈 틀이며 운영 경품이 아니다.
+## APAC 앱과 분리한 항목
+저장 키, 미디어 DB, 캐시, PWA id, 앱 이름을 모두 나눠서, 한 iPad에 두 앱을 같이 설치해도 데이터가 섞이지 않는다. 표는 [handoff.md](handoff.md) 1절.
 
-다수 당첨 상품을 등록할 수 있는 기존 추첨 엔진·관리자 기능을 유지했다. 내부 `kind:figure`는 당첨 경품 분류를 뜻하며 실제 상품이 피규어일 필요는 없다. 당첨 문구는 일반 경품 문구로 바꾸고, 이미지가 없는 당첨 상품에 제라투 이미지를 대신 표시하지 않는다. 기존 관리자 일부 "피규어" 명칭과 보라색 화면·소환 영상·아이콘은 기반 앱의 임시 디자인이며 새 OAP 브랜딩 적용 완료를 뜻하지 않는다.
-
-메인 다음 영상 사전 디코딩, 단일 미당첨 영상 재사용, 소환서 드래그/자동 오픈, 오디오, 재고·기록 저장, 백업 호환성은 유지한다.
-
-## 새 행사 설정
-
-1. 관리자 진입: 메인 좌측 상단을 3초 안에 5회 터치. 초기 PIN은 `0000`이며 운영 전에 변경한다.
-2. 새 행사의 당첨 경품·참가상과 실제 수량을 등록한다. 테스트용 수량을 행사 수량으로 사용하지 않는다.
-3. 기본 추첨은 잔여 재고 비례이며 별도 확률·쿨다운·시간 배분은 기본 비활성이다. 운영 규칙 확정 후 필요할 때 설정한다.
-4. 기존 `.kuji` 파일은 호환되지만 **가져오면 기존 행사명·재고·추첨 기록도 복원된다.** 새 행사 초기화가 목적이므로 확인 없이 가져오지 않는다.
-5. 새 행사의 운영 데이터를 준비한 뒤 새 `.kuji` 백업을 만든다. 기존 백업은 보관하고 덮어쓰지 않는다.
-
-설정은 기기별 localStorage/IndexedDB에 저장된다. 다수 상품 지원은 여러 기기의 재고 동기화를 의미하지 않는다. 운영 중 사이트 데이터 삭제나 앱 재설치 전에 백업한다.
-
-## 기존 앱과 분리한 항목
-
-| 항목 | 새 값 |
-| --- | --- |
-| 설정·재고·로그·쿨다운 키 | `swc2026-apac-lucky-draw.*` |
-| 미디어 IndexedDB | `swc2026-apac-lucky-draw-media` |
-| Service Worker 캐시 접두사 | `swc2026-apac-lucky-draw-` |
-| PWA id | 앱 경로 아래 `./swc2026-apac-lucky-draw` |
-| 시작 경로 / scope | `./index.html` / `./` |
-| 비교용 과거 화면 | `swc2026-apac-review-v8/v9/v11.*` |
-
-기존 Figure Draw의 저장 키·DB·캐시는 읽거나 삭제하지 않는다. 같은 GitHub Pages 도메인에서도 저장소 경로만 다르게 만드는 것으로 끝내지 않고 위 이름을 분리했다. 비교용 과거 화면은 새 앱 미디어를 읽기 전용으로 참조한다.
-
-## OAP 원본과 로컬 자료
-
-- AE 원본 기준: `C:\Users\jasonbae\Downloads\(0709) swc2026_oap_APAC_Final`
-- 복사한 OAP 파생 자료: `resource/oap/ae-choose-your-scroll-260922/`
-- 기존 로컬 리소스: `resource/images`, `resource/videos`, `resource/audio`, `resource/fonts` 등
-- 실제 앱 배포에 쓰는 최적화 자산: `app/assets/`
-
-`resource/`, `.tools/`, `.kuji` 백업과 AE 원본은 Git 공개 대상에서 제외한다. GitHub만 복제하면 이 로컬 자료는 따라오지 않는다. 새로 발견한 선택 화면 v8, 개봉 화면 v3, 당첨 화면 v5 AE 파일은 파일명상 최신 후보이며 아직 열어서 검증하거나 앱에 적용하지 않았다. v7을 자동으로 최종 디자인으로 단정하지 않는다.
+## 로컬 자료
+`resource/`(AE 원본·작업 사본·렌더·업로드용 파일), `.tools/`, `.kuji` 백업은 Git에서 제외한다. AE 폴더 구성은 handoff 2절.
 
 ## 검증과 개발
-
-Node.js, Python, Google Chrome이 필요하다. 현재 복제본에는 기존 검증 도구를 로컬 복사해 두었다. GitHub에서 새로 복제한 경우 다음으로 도구를 설치한다. 설치 대상은 검사 도구와, 브라우저 테스트가 쓰는 ffmpeg(`imageio-ffmpeg` 0.6.0)다. 새 PC·랩탑 준비 절차는 [handoff.md](handoff.md) 38절, 작업 규칙은 0절과 `CLAUDE.md`에 있다.
+Node.js, Python, Google Chrome이 필요하다. 새로 복제했다면 먼저 테스트 도구를 설치한다(검사 도구와 ffmpeg).
 
 ```powershell
 powershell -File scripts/setup-tests.ps1
@@ -75,28 +43,15 @@ node scripts/test-transition-browser.cjs
 node scripts/test-bgm-playlist-browser.cjs
 node scripts/test-idle-rotation-browser.cjs
 node scripts/test-volume-real-browser.cjs
+node scripts/test-scroll-encoding.cjs
 ```
 
-브라우저 검사는 격리된 Chrome 프로필과 임시 로컬 서버를 사용하며 실제 운영 데이터에 접근하지 않는다. 인코딩 검사는 `node scripts/test-scroll-encoding.cjs`이며 로컬 ffmpeg 또는 `FFMPEG` 환경변수가 필요하다. `test-tools/package-lock.json`은 검증 의존성을 고정한다.
+- 브라우저 검사는 격리된 Chrome 프로필과 임시 로컬 서버를 쓴다. 실제 운영 데이터에는 접근하지 않는다.
+- 배포 후 검사: `node scripts/test-project-pwa-browser.cjs https://ssuperwasabi.github.io/swc2026-world-finals-lucky-draw/app/`
+  - 별도 Chrome 프로필에서 PWA 식별자, 캐시, 빈 행사, 원본·APAC 앱 저장 값 보존, 오프라인 재실행, 영상 Range 응답을 확인한다.
 
-배포 후 검사: `node scripts/test-project-pwa-browser.cjs https://ssuperwasabi.github.io/swc2026-apac-cup-lucky-draw/app/` — 별도 Chrome 프로필에서 새 PWA 식별자, 캐시, 빈 행사, 타 앱 키 보존, 오프라인 재실행과 영상 Range 응답을 확인한다.
-
-최종 실물 iPad/PWA 확인은 새 앱 주소에서 별도로 필요하다. 기반 v32의 사용자 확인을 새 프로젝트의 실기 검증으로 대신 기록하지 않는다.
-
-## 문서·공유
-
-- [현재 인수인계 및 다음 작업](handoff.md)
-- [전체 작업 일지](WORKLOG.md)
-- [기반 Figure Draw v32 README 보존본](README-FIGURE-DRAW-v32.md)
-- [기반 미당첨 영상 영향 검토](RESULT-VIDEO-IMPACT-REVIEW.md)
-- [기반 전체 작업 참고 자료](<writing reference/figure-draw-work-reference.md>)
-
-과거 문서에 있는 앱 주소·버전·C/F 경로는 해당 시점의 이력이다. 새 프로젝트의 최신 기준은 이 README와 handoff.md다. 공유 ZIP은 아직 만들지 않았다. 필요 시 `scripts/create-share.ps1`로 생성하되 원본/후보 미디어 포함 범위와 전달 권한을 검토한다.
-
-## OAP AE 작업
-
-AE 원본은 `resource/oap/ae-work/`의 사본에서만 스크립트로 다룬다(`AfterFX.com -r`, 재사용 스크립트 `scripts/ae/`). 절차와 결정 사항은 [handoff.md](handoff.md) 9절을 따른다.
-
-## 다음 단계
-
-실제 자산을 모두 넣은 iPad 현장 리허설(상품 7종·특별 영상·볼륨 조정)과 `.kuji` 백업. 결정 대기: 참가상 카드 OAP 디자인, 일괄 등록 화면(2번 안, 보류). 상세는 handoff.md 21절.
+## 문서
+- [인수인계(월드 결선)](handoff.md)
+- [작업 일지(월드 결선)](WORKLOG.md)
+- [APAC 작업 이력 보존본](docs/apac/): handoff, WORKLOG, README
+- [OAP 명세](docs/oap-spec/): 현재 APAC 값. 월드 결선 값으로 다시 뽑으면 갱신한다.

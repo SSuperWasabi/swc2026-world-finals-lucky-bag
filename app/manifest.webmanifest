@@ -1,8 +1,8 @@
 {
-  "id": "./swc2026-apac-lucky-draw",
-  "name": "SWC2026 APAC Cup Lucky Draw",
-  "short_name": "SWC APAC Draw",
-  "description": "SWC2026 APAC Cup 경품 추첨 이벤트",
+  "id": "./swc2026-world-finals-lucky-draw",
+  "name": "SWC2026 World Finals Lucky Draw",
+  "short_name": "SWC World Draw",
+  "description": "SWC2026 World Finals 경품 추첨 이벤트",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

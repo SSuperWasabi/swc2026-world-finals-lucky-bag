@@ -70,7 +70,7 @@ function wav(freq,seconds,rate=8000){
   const admin=await page.evaluate(()=>({mode:document.getElementById('bgm-mode').value,rows:[...document.querySelectorAll('[onclick^="removeBgmTrack"]')].length,add:!!document.getElementById('bgm-track-add')}));
   assert.deepEqual(admin,{mode:'playlist',rows:3,add:true});
   await page.evaluate(()=>moveBgmTrack(2,-1));
-  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('swc2026-apac-lucky-draw.config.v1')).bgmPlaylist.map(t=>t.id)),['t1','t3','t2']);
+  assert.deepEqual(await page.evaluate(()=>JSON.parse(localStorage.getItem('swc2026-world-finals-lucky-draw.config.v1')).bgmPlaylist.map(t=>t.id)),['t1','t3','t2']);
   const playing=await page.evaluate(()=>bgmList.current);
   await page.evaluate(id=>removeBgmTrack(id),playing);
   await page.waitForFunction(id=>!bgmList.urls.has(id)&&bgmList.current!==id,playing,{timeout:3000});

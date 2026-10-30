@@ -2,7 +2,7 @@ $ErrorActionPreference = 'Stop'
 
 $projectRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $rootPrefix = $projectRoot.TrimEnd([IO.Path]::DirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
-$archiveName = 'SWC2026-APAC-v1-share.zip'
+$archiveName = 'SWC2026-WF-v1-share.zip'
 $archivePath = [IO.Path]::GetFullPath((Join-Path $projectRoot $archiveName))
 
 if (-not $archivePath.StartsWith($rootPrefix, [StringComparison]::OrdinalIgnoreCase)) {

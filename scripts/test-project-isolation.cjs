@@ -1,13 +1,14 @@
 // No real operator data: DOM/IDB/cache stand-ins and a synthetic legacy backup.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const {JSDOM}=require('../.tools/node_modules/jsdom');
-const prefix='swc2026-apac-lucky-draw';
+const prefix='swc2026-world-finals-lucky-draw';
 const html=fs.readFileSync('app/index.html','utf8');
-const dom=new JSDOM(html,{url:'https://example.test/swc2026-apac-cup-lucky-draw/app/',runScripts:'outside-only',pretendToBeVisual:true});
+const dom=new JSDOM(html,{url:'https://example.test/swc2026-world-finals-lucky-draw/app/',runScripts:'outside-only',pretendToBeVisual:true});
 const w=dom.window,run=code=>vm.runInContext(code,dom.getInternalVMContext());
 const oldKeys=['config.v1','stock.v1','log.v1','cooldown.v1','draw-state.v1'];
 const before={};
-for(const key of oldKeys){const name='figure-draw.'+key;before[name]=JSON.stringify({sentinel:key});w.localStorage.setItem(name,before[name]);}
+// 원본 Figure Draw와 APAC 앱(같은 github.io 출처)의 저장 값을 심어 두고, 끝까지 그대로인지 본다.
+for(const app of ['figure-draw','swc2026-apac-lucky-draw'])for(const key of oldKeys){const name=app+'.'+key;before[name]=JSON.stringify({sentinel:name});w.localStorage.setItem(name,before[name]);}
 const opened=[];
 w.indexedDB={open:(name)=>{opened.push(name);return {};}}; // Leave async boot pending, as in the inherited DOM test.
 w.TextEncoder=TextEncoder;w.TextDecoder=TextDecoder;
@@ -21,9 +22,9 @@ for(const file of ['draw-engine.js','scroll-audio.js','result-video.js','transit
 
 (async()=>{
  try{
-  const swCache=/const CACHE = '(swc2026-apac-lucky-draw-v(\d+))'/.exec(fs.readFileSync('app/sw.js','utf8'));
-  assert.ok(swCache,'sw.js CACHE');assert.equal(run('APP_VER'),'swc-apac-v'+swCache[2]); // APP_VER and SW cache move together
-  assert.equal(run('cfg.eventName'),'SWC2026 APAC Cup Lucky Draw');
+  const swCache=/const CACHE = '(swc2026-world-finals-lucky-draw-v(\d+))'/.exec(fs.readFileSync('app/sw.js','utf8'));
+  assert.ok(swCache,'sw.js CACHE');assert.equal(run('APP_VER'),'swc-wf-v'+swCache[2]); // APP_VER and SW cache move together
+  assert.equal(run('cfg.eventName'),'SWC2026 World Finals Lucky Draw');
   assert.equal(run('logArr.length'),0);
   assert.equal(run('JSON.stringify(stock)'),'{"ip1":[0,0]}');
   assert.equal(run('figureAvailable().ok'),false);
@@ -33,7 +34,7 @@ for(const file of ['draw-engine.js','scroll-audio.js','result-video.js','transit
   w.saveCfg();
   assert.ok(w.localStorage.getItem(prefix+'.config.v1'));
   for(const [key,value] of Object.entries(before))assert.equal(w.localStorage.getItem(key),value);
-  console.log('PASS: fresh event has no stock/history; original Figure Draw data ignored and unchanged');
+  console.log('PASS: 새 행사는 재고·기록 없음, 원본 Figure Draw·APAC 앱 저장 값은 읽지도 바꾸지도 않음');
 
   // Build a .kuji v2 fixture containing three winning products and a participation item.
   const cfg=JSON.parse(run('JSON.stringify(defaultConfig())'));
@@ -60,7 +61,7 @@ for(const file of ['draw-engine.js','scroll-audio.js','result-video.js','transit
 
   const manifestPwa=JSON.parse(fs.readFileSync('app/manifest.webmanifest','utf8'));
   assert.equal(manifestPwa.id,'./'+prefix);assert.equal(manifestPwa.scope,'./');assert.equal(manifestPwa.start_url,'./index.html');
-  const handlers={},deleted=[],cacheNames=['figure-draw-v32','kuji-v31',prefix+'-v0',swCache[1]];
+  const handlers={},deleted=[],cacheNames=['figure-draw-v32','kuji-v31','swc2026-apac-lucky-draw-v30',prefix+'-v0',swCache[1]];
   let claimed=false;
   vm.runInNewContext(fs.readFileSync('app/sw.js','utf8'),{
    self:{addEventListener:(name,fn)=>handlers[name]=fn,clients:{claim:async()=>{claimed=true;}}},
@@ -72,9 +73,9 @@ for(const file of ['draw-engine.js','scroll-audio.js','result-video.js','transit
   for(const v of ['v8','v9','v11']){
    const review=fs.readFileSync('app/review/'+v+'/index.html','utf8');
    assert.ok(!review.includes("'figure-draw"));
-   assert.ok(review.includes('swc2026-apac-review-'+v+'.'));
+   assert.ok(review.includes('swc2026-world-finals-review-'+v+'.'));
    assert.ok(review.includes("indexedDB.open('"+prefix+"-media'"));
   }
-  console.log('PASS: distinct PWA identity; cache activation preserves original app; review snapshots isolated');
+  console.log('PASS: 앱 식별자 분리, 캐시 정리 때 원본·APAC 앱 캐시 보존, 검토 페이지 격리');
  } finally {dom.window.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});
