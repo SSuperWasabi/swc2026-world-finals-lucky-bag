@@ -8,7 +8,7 @@ SWC2026 APAC Cup 럭키 드로우 앱(v30)을 계승한 월드 결선용 독립 
 - 작업 폴더: `F:\Download\SWC2026 World Finals_Lucky Draw App`
 - 저장소: https://github.com/SSuperWasabi/swc2026-world-finals-lucky-draw
 - 앱 배포 주소: https://ssuperwasabi.github.io/swc2026-world-finals-lucky-draw/app/
-- 시작할 때 읽을 문서: [handoff.md](handoff.md)(작업 규칙·분리 기준·AE 정리 규칙·교체 진행 표)
+- 시작할 때 읽을 문서: [handoff.md](handoff.md)(작업 규칙·분리 기준·AE 정리 규칙·교체 진행 표·현재 상태·새 세션 시작 방법)
 
 ## 앱 기능
 APAC 앱과 같다. 화면 흐름, 추첨 규칙, 배경음악·효과음, 관리자 사용법, 현장 준비 목록은 [docs/apac/handoff-apac.md](docs/apac/handoff-apac.md) 21절에 있다.

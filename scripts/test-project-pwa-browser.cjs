@@ -45,6 +45,6 @@ if(!target||new URL(target).protocol!=='https:')throw Error('Pass the deployed H
   });
   assert.equal(range.status,206);assert.equal(range.bytes,1024);
   await page.screenshot({path:`.tools/${APP_VER}-offline.png`});
-  console.log('PASS: deployed PWA identity/controller/cache, fresh event, original storage sentinels unchanged, offline reload and MP4 range',JSON.stringify(range));
+  console.log('통과: 배포 PWA 식별자·서비스 워커·캐시, 빈 행사, 원본·APAC 앱 저장 값 보존, 오프라인 재실행, 영상 Range 응답',JSON.stringify(range));
  } finally {await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;});

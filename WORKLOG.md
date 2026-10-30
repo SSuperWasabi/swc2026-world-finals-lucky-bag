@@ -15,3 +15,6 @@ APAC 작업 일지는 [docs/apac/WORKLOG-apac.md](docs/apac/WORKLOG-apac.md)에 
   - 새 handoff(0절 작업 규칙, 1절 분리 기준, 2절 AE 정리 규칙, 3절 교체 진행 표), README, CLAUDE.md를 썼다.
 - **AE 폴더:** `resource/oap/`에 `ae-original`(사용자가 원본을 넣음), `ae-work`, `upload-ready`, `mockups`, `apac-ref-scripts`(APAC AE 스크립트 사본)를 만들었다.
 - OAP 자산은 아직 APAC 그대로다.
+- **배포:** 사용자 승인으로 공개 저장소를 만들고 main에 푸시(`34ec295`), Pages 켬(legacy, main, `/`). 첫 빌드 30초. 배포 주소 PWA 검사 통과(식별자·캐시·빈 행사·원본·APAC 저장 값 보존·오프라인·Range 206).
+- **AE 원본 도착·목록 확인(읽기만):** `swc2026_oap.aep`(방송 OAP 수집본) + 소스 1.15GB, zip은 같은 수집본. **iPad 앱 전용 템플릿(CHOOSE·OPEN·WIN iPad)은 없다.** 받을지, APAC 템플릿 구조에 월드 결선 소재를 입힐지 사용자 결정 대기(handoff 5절).
+- **새 세션 인계:** handoff 4절(현재 상태)·5절(AE 원본 목록)·6절(VS Code 새 세션 시작 방법) 작성.
