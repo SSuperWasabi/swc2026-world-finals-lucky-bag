@@ -122,10 +122,11 @@ APAC과 같은 `ssuperwasabi.github.io` 출처라 저장 공간을 함께 쓴다
   - 화면 디자인은 아직 APAC 그대로다. 새 앱이라 미디어 등록 없음·재고 0으로 시작한다.
 - **AE 원본 도착:** 사용자가 `resource/oap/ae-original/`에 넣었다(5절 목록). 아직 열어 보지 않았다.
 - **다음 단계:**
-  0. **사용자 결정 받기:** iPad 앱 템플릿을 받을지, APAC 템플릿 구조에 월드 결선 소재를 입혀 만들지(5절).
-  1. AE 원본을 `ae-work/`로 복사해 열고, 컴프 구성·배치·색·타이밍을 APAC과 비교한다(원본 폴더의 aep는 열지 않는다).
-  2. 3절 교체 표의 화면마다 쓸 컴프·소재를 정해 사용자에게 보고하고 확인받는다.
-  3. 화면별로 교체한다. 한 화면씩 0절 마무리 절차를 따른다(사용자 사전 점검 → 승인 → 푸시).
+  - **방식 결정(2026-11-03):** (나) APAC 템플릿 구조 유지, 소재만 월드 파이널로 교체(5절 "결정").
+  1. 월드 결선 AE 원본을 `ae-work/wf-oap/`로 복사한다(원본 폴더의 aep는 열지 않는다). zip은 같은 내용이라 복사하지 않는다.
+  2. APAC 템플릿 사본 3종을 `ae-work/apac-templates/`로 복사하고 AE에서 누락 소재를 확인한다(5절 "APAC 템플릿 사본 가져오기").
+  3. 월드 결선 OAP에서 바꿀 소재(배경·로고·전환·방패)를 찾아 5절 "화면별 교체 계획" 표를 채워 사용자에게 보고한다.
+  4. 선택 화면 정지 시안 1장 → 사용자 확인 → 렌더·앱 적용 → 사전 점검 → 승인 → 푸시. 나머지 화면도 한 화면씩 같은 순서로 한다.
 - **정리할 것(급하지 않음):** 테스트 18종의 통과 메시지 78개가 기반 앱에서 온 영문 그대로다. 해당 테스트를 고칠 때 한글로 바꾼다(`test-project-pwa-browser`는 바꿈).
 
 ## 5. 월드 결선 AE 원본 목록 — 2026-10-30 확인
@@ -145,8 +146,38 @@ APAC과 같은 `ssuperwasabi.github.io` 출처라 저장 공간을 함께 쓴다
 - **iPad 앱 전용 템플릿이 없다(중요).**
   - APAC 원본 폴더에는 방송 OAP와 별도로 iPad 세로용 앱 템플릿 프로젝트가 있었다: `swc2026_CHOOSE_YOUR_SCROLL_iPad_*`(v8까지), `swc2026_OPEN_YOUR_SCROLL_iPad_v1~v3`, `swc2026_WIN_PRIZE_iPad_template_v1~v5`. APAC 앱의 선택·오픈·당첨 화면은 이것을 렌더·추출해 만들었다(APAC handoff 9절).
   - 월드 결선 원본에는 방송 OAP(`swc2026_oap.aep`) 하나뿐이다.
-  - **사용자 결정 필요:** (가) 월드 결선용 iPad 템플릿을 디자이너에게 받는다, 또는 (나) APAC iPad 템플릿 사본의 구조를 그대로 두고 소재(배경·로고·색·전환)만 월드 결선 OAP 것으로 바꿔 작업 사본에서 만든다.
-  - (나)로 갈 때 APAC iPad 템플릿은 APAC 원본 폴더에서 **복사해서** 쓴다(`ae-work/apac-ipad-templates/` 등). 원본은 건드리지 않는다.
+  - APAC iPad 템플릿은 디자이너가 아니라 사용자가 GPT Astra(컴퓨터 사용 기능)로 AE에서 만들었다. 그 영상을 Claude가 앱 화면으로 재현했다.
+
+### 결정 — 2026-11-03: (나) APAC 템플릿 구조 유지, 소재만 월드 파이널로 교체
+- **사용자 결정:** APAC과 모든 것을 똑같이 만들고, 템플릿만 월드 파이널 버전으로 바꾼다. Astra로 새로 만들지 않는다.
+- **이유:** 앱 코드·테스트가 APAC 템플릿의 배치·타이밍(`docs/oap-spec/`)에 맞춰져 있다. 구조를 그대로 두면 소재만 바뀌고 코드·명세·AE 스크립트를 그대로 쓴다. 새로 만들면 배치·타이밍이 달라져 명세 재추출과 코드 수정이 필요하다.
+- **지킬 것:**
+  - 배치·크기·타이밍·키프레임·레이어 구조는 바꾸지 않는다. 바꾸는 것은 소재(영상·이미지·로고·색·글자)뿐이다.
+  - 소재를 바꾸다 구조를 건드려야 하는 경우(예: 월드 파이널 소재의 비율·투명 영역이 달라 맞지 않음)는 바로 고치지 말고 사용자에게 먼저 보고한다.
+  - 앱 코드 변경은 자산 파일 교체가 기본이다. 좌표·시간 값 변경이 필요하면 이유와 함께 보고한다.
+
+### APAC 템플릿 사본 가져오기
+- **가져올 곳:** `F:\Download\SWC2026 APAC Cup_Lucky Draw App\resource\oap\ae-work\(0709) swc2026_oap_APAC_Final\`(2.83GB, 소환서 이미지 연결을 바꿔 둔 사본)
+  - 선택 `swc2026_CHOOSE_YOUR_SCROLL_iPad_INTRO_LOOP_v8_260923.aep`
+  - 오픈 `swc2026_OPEN_YOUR_SCROLL_iPad_v3_260923.aep`
+  - 당첨 `swc2026_WIN_PRIZE_iPad_template_v5_260923.aep`
+  - 같은 폴더의 `(Footage)` 소재와, 형제 폴더 `external-footage\SWC2026_Scroll_nobg.png`(소환서 이미지)
+- **복사할 곳:** 월드 결선 `resource/oap/ae-work/apac-templates/`. 폴더 구조째 복사해 상대 경로가 유지되게 한다. 렌더 결과(`render/`, 19GB)는 가져오지 않는다.
+- **원래 APAC 원본**(`C:\Users\jasonbae\Downloads\(0709) swc2026_oap_APAC_Final`)은 쓰지 않는다. 그쪽 aep는 수정 금지 폴더 `F:\Download\Figure draw app`의 이미지를 불러온다.
+- 복사 후 AE에서 열어 누락 소재가 없는지 확인하고, 월드 결선용 이름(`wf_` 접두어)으로 다른 이름 저장한 뒤 작업한다.
+
+### 화면별 교체 계획 (APAC 출처 → 월드 파이널 소재)
+| 화면 | APAC에서 만든 방법 | 월드 파이널에서 바꿀 소재(후보, 열어서 확인) |
+| --- | --- | --- |
+| 선택 | CHOOSE v8 → 배경 영상 2종 + 카드·버튼 PNG(`scripts/ae/export-choose-v8.jsx`) | 배경(`월드 파이널 배경 B_ups.mp4`, `SWC2026_Symbol_FINAL_(basic).mov`), 로고, "APAC" 글자 |
+| 오픈 | OPEN v3 → `open-frame-loop.mp4` | 같은 배경·로고 |
+| 당첨 | WIN v5 → 상품별 영상(`scripts/ae/render-prizes.jsx`) | 배경·엠블럼·하단 패널 색. 상품 목록은 월드 결선 상품이 정해지면 받는다 |
+| 화면 전환 | `TRANS_ASIA` 알파 시퀀스 → 매트·색 영상(54fps) | `(Footage)/COMP/01_Transition/pre/0713_TRANS_FINAL/`. 가로판(1920×1080)이면 세로판 처리 방법을 APAC 9·16절과 비교해 보고 |
+| 축하(A·B) | `resource/oap/ae-work/render/congrats/congrats-v25-A/B.jsx`(APAC 폴더, 1.8초) | 스크립트를 가져와 소재만 교체 |
+| 등급 배지 | 방송 OAP `07-1_2 vs 2 In game_Cam` > `[pre] 2vs2 TEAM NAME 01` > `text 7`(글자 없는 방패) | 월드 결선 `swc2026_oap.aep`의 같은 이름 컴프 |
+| 대기 화면 타이틀 | 앱 글자 "LUCKY DRAW EVENT" | 그대로인지 사용자 확인 |
+
+- **진행 방식:** 선택 화면부터 한다. 정지 화면 시안 1장을 APAC과 나란히 보여 주고 방향을 확인받은 뒤 렌더한다. 화면마다 0절 마무리 절차(사용자 사전 점검 → 승인 → 푸시)를 따른다.
 - 만든 방법과 스크립트: APAC handoff 9~16절, `resource/oap/apac-ref-scripts/`, Git의 `scripts/ae/`.
 
 ## 6. 새 세션 시작 방법 (VS Code + Claude)
@@ -154,7 +185,7 @@ APAC과 같은 `ssuperwasabi.github.io` 출처라 저장 공간을 함께 쓴다
 1. VS Code에서 **`F:\Download\SWC2026 World Finals_Lucky Draw App` 폴더를 연다.** APAC 폴더에서 열면 APAC 안내판이 읽힌다.
 2. Claude 패널을 새로 연다. 루트 `CLAUDE.md`는 자동으로 읽힌다(이 문서를 가리킴).
 3. 첫 메시지 예:
-   > handoff.md 0~6절과 WORKLOG.md를 읽고 현재 상태를 요약해 줘. 그다음 resource/oap/ae-original의 월드 결선 AE 원본을 ae-work로 복사해서 열고, APAC 앱의 각 화면(선택·오픈·전환·축하·등급·당첨 영상)에 쓸 월드 결선 컴프·소재를 찾아 비교표로 보고해 줘. iPad 템플릿 방식은 (가)/(나) 중 ○로 간다. 원본은 수정하지 말고, 내가 열어 둔 AE 프로젝트는 닫거나 저장하지 마.
+   > handoff.md 0~6절과 WORKLOG.md를 읽고 현재 상태를 요약해 줘. 방식은 5절 결정대로 (나) — APAC 템플릿 구조는 그대로 두고 소재만 월드 파이널로 바꾼다. 4절 다음 단계 1~3을 진행해서, 화면별로 바꿀 월드 파이널 소재를 비교표로 보고해 줘. 원본은 수정하지 말고, 내가 열어 둔 AE 프로젝트는 닫거나 저장하지 마.
 4. **이 PC에서 계속할 때:** 테스트 도구(`.tools/`)가 이미 있다. 사전 점검용 로컬 서버는 `py -m http.server 8090 --bind 0.0.0.0`(폴더 루트에서) → http://127.0.0.1:8090/app/
 5. **다른 PC·랩탑에서 이어받을 때:** 저장소를 복제한 뒤 `powershell -File scripts/setup-tests.ps1`을 실행한다. `resource/`(AE 원본·작업 사본)는 Git에 없으니 따로 옮긴다. 자세한 준비는 APAC handoff 38절.
 6. **알아 둘 것:**
