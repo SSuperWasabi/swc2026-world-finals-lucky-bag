@@ -235,7 +235,8 @@
 .win-frame{position:relative;width:min(100%,calc(100dvh*2048/2732));aspect-ratio:2048/2732;container-type:size;overflow:hidden;background:#7922f4}
 .win-video{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;pointer-events:none}
 /* Staff check in the empty lower-right triangle, clear of the figure base and the POP-UP STORE panel. */
-.win-staff{position:absolute;right:3.2cqw;bottom:2.4cqh;display:flex;flex-direction:column;align-items:flex-end;gap:.5cqh;padding:1.3cqh 2.4cqw;border-radius:1.6cqw;background:#3a0085eb;border:1px solid #dfd2ff99;color:#fff;font:600 max(11px,1.35cqw)/1.2 'Unbounded',sans-serif;letter-spacing:.03em;box-shadow:0 .4cqw 1.4cqw #0005;opacity:0;animation:win-staff-in .4s ease-out 2.4s both}
+/* 직원 확인 상자(swc-wf-v7): 하단 대회명과 떨어지게 오른쪽으로 붙이고 전체를 80%로(여백·글자·모서리 모두 ×0.8). 이전: right 3.2cqw, 패딩 1.3cqh 2.4cqw, 글자 max(11px,1.35cqw) */
+.win-staff{position:absolute;right:1.6cqw;bottom:2.4cqh;display:flex;flex-direction:column;align-items:flex-end;gap:.4cqh;padding:1.04cqh 1.92cqw;border-radius:1.28cqw;background:#3a0085eb;border:1px solid #dfd2ff99;color:#fff;font:600 max(9px,1.08cqw)/1.2 'Unbounded',sans-serif;letter-spacing:.03em;box-shadow:0 .4cqw 1.4cqw #0005;opacity:0;animation:win-staff-in .4s ease-out 2.4s both}
 .win-staff b{font-weight:800;color:#dfd2ff}
 .win-staff span{font-weight:500;font-size:1.25em}
 @keyframes win-staff-in{from{opacity:0;transform:translateY(1cqh)}to{opacity:1;transform:none}}
