@@ -127,13 +127,97 @@ const CHOOSE_SPARKLES = [
 ];
 const CHOOSE_GLITTER = CHOOSE_SPARKLES.map(([x, y, s, d]) => `<i style="left:${x}%;top:${y}%;width:${s}%;--d:${d}s"></i>`).join('');
 
+// 부하 시험용 주소 옵션(swc-wf-v3): ?glass=a 는 유리 카드 시안 A(맑은 유리),
+// ?glass=b 는 시안 B(짙은 유리, 고른 카드만 A의 맑은 유리), ?perf=1 은 선택 화면 측정 표시. 옵션이 없으면 원래 카드 그대로다.
+const CHOOSE_QUERY = new URLSearchParams(location.search);
+const CHOOSE_GLASS_MODE = ['a', 'b'].includes(CHOOSE_QUERY.get('glass')) ? CHOOSE_QUERY.get('glass') : '';
+const CHOOSE_GLASS = CHOOSE_GLASS_MODE !== '';
+
 function buildChooseGrid(grid, onChoose) {
+  const stage = grid.closest('.choose-stage');
+  stage.classList.toggle('glass', CHOOSE_GLASS);
+  stage.classList.toggle('glass-b', CHOOSE_GLASS_MODE === 'b');
   grid.innerHTML = CHOOSE_CARD_LAYOUT.map((c, i) => {
     const n = String(i + 1).padStart(2, '0');
+    // 유리 카드: 뒤 배경을 흐리게 비추는 판 + 소환서 그림 + 번호·이름 글자. 어둡게 하기는 filter 대신 막(glass-dim)으로 한다(filter가 있으면 유리 흐림이 끊긴다).
+    const face = CHOOSE_GLASS
+      ? `<span class="glass-pane"></span><span class="glass-no">${n}</span><img class="glass-art" src="assets/oap/choose/scroll-art.webp" alt="" draggable="false"><span class="glass-name">SCROLL ${n}</span><span class="glass-dim"></span>`
+      : `<img src="assets/oap/choose/scroll-${n}.webp" alt="" draggable="false">`;
     // Glow, shine and glitter layers only animate while the card is selected (display:none otherwise).
-    return `<button class="scroll-choice choose-anim choose-rise" style="left:calc(100%*${c.left}/2048);top:calc(100%*${c.top}/2732);--delay:${c.delay.toFixed(3)}s" aria-label="${i + 1}번 소환서 선택" aria-pressed="false" data-index="${i}"><span class="card-lift"><img src="assets/oap/choose/scroll-${n}.webp" alt="" draggable="false"><span class="card-shine"></span></span><span class="card-glow"></span><span class="card-glitter">${CHOOSE_GLITTER}</span></button>`;
+    return `<button class="scroll-choice choose-anim choose-rise" style="left:calc(100%*${c.left}/2048);top:calc(100%*${c.top}/2732);--delay:${c.delay.toFixed(3)}s" aria-label="${i + 1}번 소환서 선택" aria-pressed="false" data-index="${i}"><span class="card-lift">${face}<span class="card-shine"></span></span><span class="card-glow"></span><span class="card-glitter">${CHOOSE_GLITTER}</span></button>`;
   }).join('');
   grid.querySelectorAll('.scroll-choice').forEach(b => b.addEventListener('click', () => onChoose(Number(b.dataset.index))));
+  if (CHOOSE_QUERY.has('perf')) new ChoosePerf(grid.closest('.choose-stage'));
+}
+
+// 선택 화면 부하 측정(?perf=1): 카드를 누를 수 있게 된 순간부터 10초 동안
+// 화면 프레임 간격(rAF)과 배경 영상이 실제로 그린 프레임(requestVideoFrameCallback)을 잰다.
+class ChoosePerf {
+  constructor(stage) {
+    this.stage = stage;
+    this.runs = [];
+    this.box = document.createElement('div');
+    this.box.className = 'choose-perf';
+    stage.appendChild(this.box);
+    this.render('측정 대기: 선택 화면이 열리면 10초 잽니다');
+    new MutationObserver(() => {
+      if (stage.classList.contains('is-interactive') && !this.active) this.measure();
+    }).observe(stage, { attributes: true, attributeFilter: ['class'] });
+    window.__choosePerf = this.runs;
+  }
+
+  render(now) {
+    const mode = CHOOSE_GLASS ? '유리 ' + CHOOSE_GLASS_MODE.toUpperCase() : '기본 카드';
+    this.box.innerHTML = `<b>${mode}</b> ${now}` + this.runs.map((r, i) => r.aborted
+      ? `<div>${i + 1}회: 중단 — ${r.aborted}(결과에서 뺌)</div>`
+      : `<div>${i + 1}회${r.selected ? '(선택)' : ''}: 화면 ${r.fps}fps(기기 ${r.hz}Hz) · 느린 프레임 ${r.slow}/${r.frames} · 최장 ${r.worst}ms · 영상 ${r.videoFps}fps · 영상 누락 ${r.dropped}</div>`).join('');
+  }
+
+  measure() {
+    // 측정 도중 탭이 가려지거나 선택 화면을 벗어나면 그 회차는 중단한다(멈춘 영상·멈춘 화면이 부하로 잘못 잡히지 않게).
+    const run = this.runId = (this.runId || 0) + 1;
+    this.active = true;
+    const SEC = 10, t0 = performance.now(), gaps = [];
+    const videos = [...this.stage.querySelectorAll('video')];
+    const dropped = () => videos.reduce((s, v) => s + (v.getVideoPlaybackQuality ? v.getVideoPlaybackQuality().droppedVideoFrames : 0), 0);
+    const d0 = dropped();
+    let last = t0, vFrames = 0;
+    const watched = new Set();
+    // 반복 영상이 앞으로 오면 그 영상도 센다(시작 직후는 인트로가 재생 중일 수 있다).
+    const onVideo = v => { if (watched.has(v) || !v.requestVideoFrameCallback) return; watched.add(v);
+      const tick = () => { if (!this.active || this.runId !== run) return; if (!v.paused) vFrames++; v.requestVideoFrameCallback(tick); }; v.requestVideoFrameCallback(tick); };
+    videos.forEach(onVideo);
+    this.render('측정 중…');
+    // 탭이 가려지면 rAF 자체가 멈추므로 visibilitychange로 기억해 두었다가 다음 프레임에서 중단한다.
+    let hidden = document.hidden;
+    const onVis = () => { if (document.hidden) hidden = true; };
+    document.addEventListener('visibilitychange', onVis);
+    const selected = this.stage.classList.contains('has-selection');
+    const abort = reason => { this.active = false; document.removeEventListener('visibilitychange', onVis); this.runs.push({ aborted: reason }); this.render('다시 재려면 HOME → 다시 들어오거나 카드를 고르세요'); };
+    const step = now => {
+      if (this.runId !== run) return;
+      if (hidden) { abort('탭이 가려짐'); return; }
+      if (!this.stage.classList.contains('is-interactive')) { abort('선택 화면을 벗어남'); return; }
+      gaps.push(now - last); last = now;
+      if (now - t0 < SEC * 1000) { requestAnimationFrame(step); return; }
+      this.active = false;
+      document.removeEventListener('visibilitychange', onVis);
+      const sorted = [...gaps].sort((a, b) => a - b), median = sorted[sorted.length >> 1];
+      this.runs.push({
+        mode: CHOOSE_GLASS ? 'glass-' + CHOOSE_GLASS_MODE : 'default',
+        selected,
+        frames: gaps.length,
+        fps: Math.round(gaps.length / SEC * 10) / 10,
+        hz: Math.round(1000 / median),
+        slow: gaps.filter(g => g > median * 1.8).length,
+        worst: Math.round(sorted[sorted.length - 1]),
+        videoFps: Math.round(vFrames / SEC * 10) / 10,
+        dropped: dropped() - d0
+      });
+      this.render('완료(카드를 고르면 선택 상태로 다시 10초 잽니다)');
+    };
+    requestAnimationFrame(now => { last = now; requestAnimationFrame(step); });
+  }
 }
 
 // OPEN YOUR SCROLL (OAP v3) backdrop: the AE frame loop only plays while the screen is shown.

@@ -20,7 +20,8 @@ const server=http.createServer((req,res)=>{
  });
 });
 const ff=path.resolve('.tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe');
-const SRC=path.resolve('resource/oap/ae-work/(0709) swc2026_oap_APAC_Final/(Footage)/@TRANS_ASIA');
+// 월드 결선 원본 알파 시퀀스(swc-wf-v2). 영상 프레임 n = PNG n+6으로 APAC TRANS_ASIA와 대응이 같다.
+const SRC=path.resolve('resource/oap/ae-work/wf-oap/(Footage)/COMP/01_Transition/pre/0713_TRANS_FINAL');
 const tmp=path.resolve('.tools');
 (async()=>{
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
@@ -80,7 +81,7 @@ const tmp=path.resolve('.tools');
     }),[frameOf('matte',n),frameOf('color',n),mode]);
     const shot=path.join(tmp,`transition-${n}.png`),ref=path.join(tmp,`transition-${n}-ref.png`);await page.screenshot({path:shot});
     await page.evaluate(()=>document.querySelectorAll('.test-still').forEach(i=>i.remove()));
-    const src=path.join(SRC,`TRANS_ASIA_${String(n+6).padStart(5,'0')}.png`);
+    const src=path.join(SRC,`0713_TRANS_FINALE_${String(n+6).padStart(5,'0')}.png`);
     spawnSync(ff,['-hide_banner','-loglevel','error','-y','-i',base,'-i',src,'-filter_complex','[1:v]format=rgba,scale=-2:1024:flags=lanczos,crop=768:1024,scale=1024:1366:flags=bicubic[t];[0:v][t]overlay=0:0:format=auto,format=rgb24','-frames:v','1',ref]);
     const run=spawnSync(ff,['-hide_banner','-i',shot,'-i',ref,'-filter_complex','[0:v]format=gbrp[a];[1:v]format=gbrp[b];[a][b]psnr','-f','null','-'],{encoding:'utf8'});
     const psnr=Number((/average:([0-9.]+)/.exec(run.stderr)||[0,0])[1]);

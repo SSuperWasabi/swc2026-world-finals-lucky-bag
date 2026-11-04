@@ -54,7 +54,9 @@ const server=http.createServer((req,res)=>{
    await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return t;});
   assert.ok(presented.every(t=>Math.abs(t-1)<0.04),`presented ${presented}`);
   const shot=path.resolve('.tools/open-v3-t1.png');await page.locator('#open-stage').screenshot({path:shot});
-  const ae=path.resolve('resource/oap/ae-work/render/open-v3/verify/idle-t1.png');
+  // 월드 결선 기준: wf_ 오픈 사본 FRAME_V3 렌더(t=1초, v10 64px 올림·v22 B안 이미 반영) + AE 소스 sacred-idle t=1초를
+  // 영상 칸(140,531 1768²)에 합성한 그림(swc-wf-v2). 이미 올린 좌표라 아래 비교에서 shift는 0이다.
+  const ae=path.resolve('resource/oap/ae-work/render/open-wf/verify/idle-t1-wf.png');
   if(fs.existsSync(ae)){
    const ff=path.resolve('.tools/imageio_ffmpeg/binaries/ffmpeg-win-x86_64-v7.1.exe');
    // The app moves the slot up by layout.appliedShiftY; compare the app crop at the shifted row with the AE crop.
@@ -62,7 +64,7 @@ const server=http.createServer((req,res)=>{
     const run=spawnSync(ff,['-hide_banner','-i',shot,'-i',ae,'-filter_complex',`[0:v]format=gbrp,crop=${w}:${h}:${x+dx}:${y+shift+dy}[a];[1:v]format=gbrp,crop=${w}:${h}:${x}:${y}[b];[a][b]psnr`,'-f','null','-'],{encoding:'utf8'});
     best=Math.max(best,Number((/average:([0-9.]+)/.exec(run.stderr)||[0,0])[1]));}return best;};
    // Header right of the BACK pill, and the scroll slot above the drag guide.
-   const scores={header:psnr([1640,500,400,20]),slot:psnr([1760,1570,144,599],layout.appliedShiftY)};
+   const scores={header:psnr([1640,500,400,20]),slot:psnr([1760,1570,144,599+layout.appliedShiftY],0)};
    // Title text in the header goes through H.264 twice (render + app), so it gets a lower bar than the clip.
    for(const [k,v] of Object.entries(scores))assert.ok(v>(k==='header'?28:30),`${k} vs AE PSNR ${v}`);
    console.log('PASS: frame + scroll clip vs AE IDLE_V3 (t=1 s) header %s dB, slot %s dB',scores.header.toFixed(2),scores.slot.toFixed(2));
