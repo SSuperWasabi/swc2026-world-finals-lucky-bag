@@ -515,7 +515,9 @@ showResult=function(){renderResult();go('scr-result');const r=lastResult;
   if(document.getElementById('scr-result').classList.contains('oap-win'))onWinVideoTime(WIN_PRODUCT_AT,sound);else sound();};
 specialFx=function(){if(document.getElementById('scr-result').classList.contains('oap-win')){playSfx('fanfare');return;}baseSpecialFx();};
 window.chooseScreenDiagnostics=chooseScreen.diagnostics;
-buildChooseGrid(document.getElementById('scroll-grid'),i=>chooseScroll(i));
+// 관리자에서 카드 모양·측정 표시를 바꾸면 다시 부른다(choose-screen.js).
+function rebuildChooseGrid(){buildChooseGrid(document.getElementById('scroll-grid'),i=>chooseScroll(i));}
+rebuildChooseGrid();
 function renderScrollSelection(){
   document.querySelectorAll('#scroll-grid .scroll-choice').forEach((b,i)=>b.setAttribute('aria-pressed',String(selectedScroll===i)));
   document.getElementById('choose-stage').classList.toggle('has-selection',selectedScroll!=null);
@@ -777,6 +779,8 @@ renderAdmSettings = function(){
   const visibilityRow=document.getElementById('hide-scroll-selection').closest('.adm-row');
   const visibilityNote=visibilityRow.nextElementSibling;visibility.append(visibilityRow,visibilityNote);root.prepend(visibility);
   const transitionRow=document.createElement('div');transitionRow.innerHTML=`<div class="adm-row"><label for="screen-transitions">화면 전환 영상</label><input id="screen-transitions" type="checkbox" role="switch" ${cfg.screenTransitions!==false?'checked':''} onchange="saveScreenTransitions()"></div><p class="figure-rule-note">메인·소환서 선택·오픈·결과 화면 사이를 이동할 때 AE 전환 영상을 재생합니다. 현장에서 문제가 있으면 끄세요. 변경 즉시 저장됩니다.</p>`;visibility.append(...transitionRow.children);
+  // 소환서 카드 모양(swc-wf-v6): 기본 = AE 카드 그림, 유리 B = 짙은 유리(고른 카드는 맑은 유리). 부하 측정 표시는 iPad 실측용.
+  const cardRow=document.createElement('div');cardRow.innerHTML=`<div class="adm-row"><label for="choose-card-style">소환서 카드 모양</label><select id="choose-card-style" onchange="saveChooseCardStyle()"><option value="default" ${cfg.chooseCardStyle==='glass-b'?'':'selected'}>기본 (AE 카드)</option><option value="glass-b" ${cfg.chooseCardStyle==='glass-b'?'selected':''}>유리 B (짙은 유리)</option></select></div><p class="figure-rule-note">유리 B는 카드 뒤 배경을 흐리게 비추는 짙은 보라 유리이고, 고른 카드는 맑은 유리로 밝아집니다. 위치·크기·등장·선택 표시는 같습니다. 변경 즉시 저장됩니다.</p><div class="adm-row"><label for="choose-perf">선택 화면 부하 측정 표시</label><input id="choose-perf" type="checkbox" role="switch" ${cfg.choosePerf===true?'checked':''} onchange="saveChoosePerf()"></div><p class="figure-rule-note">켜면 소환서 선택 화면 아래에 10초 측정 결과(화면 fps·느린 프레임·영상 fps)를 표시합니다. 시험용이니 행사 전에는 끄세요.</p>`;visibility.append(...cardRow.children);
   // The legacy kuji draw-screen return has no screen here; the field now sets the result screen return.
   const ret=document.getElementById('set-drawidle');ret.disabled=false;ret.min='3';ret.value=resultReturnSec();ret.title='결과 화면(당첨 영상·당첨 카드·참가상) 무입력 시 메인 복귀(초)';
   ret.closest('.adm-row').querySelector('label').textContent='결과 복귀(초)';
@@ -806,6 +810,16 @@ renderAdmSettings = function(){
     const last=sfxHead.parentElement.querySelector('.muted-note');
     (last||sfxHead).insertAdjacentHTML(last?'beforebegin':'afterend',volumeRow('sfx_scene','연출 소리')+`<div class="adm-row"><label for="touch-sfx-mode">소환서 터치음</label><select id="touch-sfx-mode" onchange="saveTouchSfxMode()"><option value="all" ${touchSfxMode()==='all'?'selected':''}>한 번에 (터치 순간 3종)</option><option value="split" ${touchSfxMode()==='split'?'selected':''}>나눠서 (터치: 임팩트·럼블 / 개봉 순간: 차임)</option><option value="off" ${touchSfxMode()==='off'?'selected':''}>끄기</option></select></div>`+volumeRow('sfx_touch','소환서 터치음')+'<p class="figure-rule-note">소환서 터치음 = 오픈 화면에서 소환서를 누르는 순간의 소리. 개봉(흰 섬광) 때 0.9초 동안 줄어들고, 끝까지 열지 않고 손을 떼면 0.4초 동안 줄어듭니다. 나눠서 방식은 개봉 순간에 차임이 울립니다. '+'</p><p class="figure-rule-note">A·B 축하 = A·B 등급 축하 화면(1.8초) 소리. 올리지 않으면 기본 LEVELUP 소리이며, 1.8초보다 길면 다음 화면으로 넘어갈 때 짧게 줄어들며 끝납니다. 연출 소리 = 소환서 개봉·대기 화면 소리, 특별 영상·A/B 축하음. 효과음 전체는 모든 효과음과 연출 소리에 함께 적용됩니다.</p>'+`<details class="sound-log"><summary>최근 효과음 기록(소리가 안 날 때 확인)</summary><ol id="sound-log">${soundLogHtml()}</ol></details>`);}
   const note=document.createElement('p');note.className='figure-rule-note';note.textContent='소환서 선택 → 드래그 개봉 → 결과 흐름을 사용합니다. 기존 라인업·NPC 설정은 이 흐름에 적용하지 않습니다. 상급 전체 쿨다운과 구간 제한은 위 시간 제한 카드에서 설정합니다. 대기 영상과 BGM·효과음은 그대로 사용할 수 있습니다.';card.appendChild(note);
+}
+function saveChooseCardStyle(){
+  const old=cfg.chooseCardStyle;cfg.chooseCardStyle=document.getElementById('choose-card-style').value==='glass-b'?'glass-b':'default';
+  if(!saveCfg()){cfg.chooseCardStyle=old;renderAdmSettings();toast('설정 저장 실패');return;}
+  rebuildChooseGrid();toast(cfg.chooseCardStyle==='glass-b'?'소환서 카드: 유리 B':'소환서 카드: 기본');
+}
+function saveChoosePerf(){
+  const old=cfg.choosePerf;cfg.choosePerf=document.getElementById('choose-perf').checked;
+  if(!saveCfg()){cfg.choosePerf=old;renderAdmSettings();toast('설정 저장 실패');return;}
+  rebuildChooseGrid();toast(cfg.choosePerf?'부하 측정 표시 켬':'부하 측정 표시 끔');
 }
 function saveScreenTransitions(){
   const old=cfg.screenTransitions;cfg.screenTransitions=document.getElementById('screen-transitions').checked;
