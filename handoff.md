@@ -2,8 +2,9 @@
 
 ## 1. 현재 상태 (2026-11-09)
 - 버전 `swc-lb-v1`. 기능 빌드 완료, 카드 연출은 단순 뒤집기(자리만).
-- 브랜치 `lucky-bag-build`에서 작업. 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(비공개).
-- 테스트: 규칙·저장 23개, 브라우저 흐름 9개 통과.
+- main에 합쳐 푸시함(11-09). 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(비공개).
+- 테스트: 규칙·저장 31개, 브라우저 흐름 15개 통과(전체 검토 지적 반영 후).
+- Pages: 비공개 저장소라 아직 없음 → iPad 주소는 Cloudflare 터널 또는 공개 전환 중 결정 필요.
 
 ## 2. 일정
 | 날짜 | 할 일 |
