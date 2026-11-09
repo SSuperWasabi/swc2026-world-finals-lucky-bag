@@ -1,57 +1,34 @@
-# SWC2026 World Finals Lucky Draw App
+# SWC Lucky Bag — SWC2026 월드 결선 럭키백 뽑기 앱
 
-SWC2026 APAC Cup 럭키 드로우 앱(v30)을 계승한 월드 결선용 독립 PWA 프로젝트. 기능·설정·관리자 화면은 그대로 두고 OAP 미디어 템플릿만 월드 결선 버전으로 바꾼다.
+컴투스 스토어 팝업에서 럭키백을 산 고객이 산 수량만큼 A·B·C를 뽑는 iPad 오프라인 웹앱(PWA).
 
-- 프로젝트 시작일: 2026-10-30
-- 현재 버전: `swc-wf-v1` / 캐시: `swc2026-world-finals-lucky-draw-v1`
-- 기반: APAC 저장소 main `fd317e9`(앱 `swc-apac-v30`)
-- 작업 폴더: `F:\Download\SWC2026 World Finals_Lucky Draw App`
-- 저장소: https://github.com/SSuperWasabi/swc2026-world-finals-lucky-draw
-- 앱 배포 주소: https://ssuperwasabi.github.io/swc2026-world-finals-lucky-draw/app/
-- 시작할 때 읽을 문서: [handoff.md](handoff.md)(작업 규칙·분리 기준·AE 정리 규칙·교체 진행 표·현재 상태·새 세션 시작 방법)
+- 앱: `app/` (빌드 없음, 정적 파일)
+- 요구사항: `docs/PRD-lucky-bag.md`
+- 인수인계: `handoff.md`, 작업 기록: `WORKLOG.md`
 
-## 앱 기능
-APAC 앱과 같다. 화면 흐름, 추첨 규칙, 배경음악·효과음, 관리자 사용법, 현장 준비 목록은 [docs/apac/handoff-apac.md](docs/apac/handoff-apac.md) 21절에 있다.
+## 파일
+| 파일 | 하는 일 |
+| --- | --- |
+| `app/bag-engine.js` | 뽑기 규칙(재고 비율, 중복 줄이기, 3장씩 묶기) — 순수 함수 |
+| `app/bag-store.js` | 저장·기록(구매 확정, 새로 고침 복구, 취소, 재고 수정, CSV, 백업) |
+| `app/reveal.js` | 카드 연출 자리 — 이 파일만 바꿔 연출을 교체 |
+| `app/index.html` | 화면과 흐름, 관리자 |
+| `app/sw.js` | 오프라인 캐시 |
 
-관리자 진입: 메인 좌측 상단을 3초 안에 5회 터치. 초기 PIN은 `0000`이며 운영 전에 바꾼다. 새 앱은 미디어 등록 없음, 재고 0, 추첨 기록 없음으로 시작한다.
-
-## APAC 앱과 분리한 항목
-저장 키, 미디어 DB, 캐시, PWA id, 앱 이름을 모두 나눠서, 한 iPad에 두 앱을 같이 설치해도 데이터가 섞이지 않는다. 표는 [handoff.md](handoff.md) 1절.
-
-## 로컬 자료
-`resource/`(AE 원본·작업 사본·렌더·업로드용 파일), `.tools/`, `.kuji` 백업은 Git에서 제외한다. AE 폴더 구성은 handoff 2절.
-
-## 검증과 개발
-Node.js, Python, Google Chrome이 필요하다. 새로 복제했다면 먼저 테스트 도구를 설치한다(검사 도구와 ffmpeg).
-
-```powershell
-powershell -File scripts/setup-tests.ps1
-node scripts/test-project-isolation.cjs
-node scripts/test-figure.cjs
-node scripts/test-figure-dom.cjs
-node scripts/test-idle-video-cycle.cjs
-node scripts/test-scroll-audio.cjs
-node scripts/test-audio-mix.cjs
-node scripts/test-figure-sw.cjs
-node scripts/test-figure-browser.cjs
-node scripts/test-idle-video-browser.cjs
-node scripts/test-result-video-browser.cjs
-node scripts/test-choose-browser.cjs
-node scripts/test-open-browser.cjs
-node scripts/test-win-browser.cjs
-node scripts/test-transition-browser.cjs
-node scripts/test-bgm-playlist-browser.cjs
-node scripts/test-idle-rotation-browser.cjs
-node scripts/test-volume-real-browser.cjs
-node scripts/test-scroll-encoding.cjs
+## 로컬 실행
+```bash
+py -m http.server 8740
 ```
+브라우저에서 `http://localhost:8740/app/` 을 연다.
 
-- 브라우저 검사는 격리된 Chrome 프로필과 임시 로컬 서버를 쓴다. 실제 운영 데이터에는 접근하지 않는다.
-- 배포 후 검사: `node scripts/test-project-pwa-browser.cjs https://ssuperwasabi.github.io/swc2026-world-finals-lucky-draw/app/`
-  - 별도 Chrome 프로필에서 PWA 식별자, 캐시, 빈 행사, 원본·APAC 앱 저장 값 보존, 오프라인 재실행, 영상 Range 응답을 확인한다.
+## 테스트
+```bash
+node --test "tests/*.test.cjs"
+```
+```bash
+node tests/flow-browser.cjs
+```
+브라우저 테스트는 설치된 Chrome과 `test-tools`의 playwright-core를 쓴다(처음 한 번 `test-tools`에서 `npm install`). 스크린샷은 `tests/out/`에 저장된다.
 
-## 문서
-- [인수인계(월드 결선)](handoff.md)
-- [작업 일지(월드 결선)](WORKLOG.md)
-- [APAC 작업 이력 보존본](docs/apac/): handoff, WORKLOG, README
-- [OAP 명세](docs/oap-spec/): 현재 APAC 값. 월드 결선 값으로 다시 뽑으면 갱신한다.
+## 관리자
+대기 화면 오른쪽 위(Com2uS Store 로고 자리)를 3초 안에 5번 누르고 PIN(기본 `0000`)을 넣는다.

@@ -1,28 +1,19 @@
 # CLAUDE.md — 매 세션 자동으로 읽는 안내판
 
-SWC2026 월드 결선 럭키 드로우 앱(APAC 앱 v30에서 파생). 세부 내용은 모두 `handoff.md`에 있다. 이 파일은 짧게 유지한다.
+SWC2026 월드 결선(2026-11-14) 컴투스 스토어 팝업 **럭키백 A/B/C 뽑기 앱**. 기존 럭키드로우 앱 저장소를 복사해 시작했지만 화면·규칙은 새로 썼다. 세부 내용은 `handoff.md`, 제품 요구는 `docs/PRD-lucky-bag.md`.
 
 ## 시작할 때
-- `handoff.md` 0절(작업 규칙)·1절(분리 기준)·3절(교체 진행 표)·4절(현재 상태)·5절(AE 원본 목록)과 `WORKLOG.md` 최근 항목을 먼저 읽는다. 새 세션 시작 방법은 6절.
-- 앱 기능 설명은 `docs/apac/handoff-apac.md` 21절, 새 PC·랩탑 준비는 같은 문서 38절.
+- `handoff.md` 현재 상태와 `WORKLOG.md` 최근 항목을 먼저 읽는다.
 
 ## 꼭 지킬 규칙
-- **작업 방식(사용자 결정 2026-11-03):** APAC과 모든 것을 똑같이 두고, APAC iPad 템플릿(선택 v8·오픈 v3·당첨 v5) 구조를 유지한 채 소재만 월드 파이널로 바꾼다. 배치·타이밍·구조를 바꿔야 하면 먼저 보고한다(handoff 5절).
-- **사용자에게 보이는 모든 글은 한글:** 진행 안내, 명령 설명, 서브에이전트 지시·보고, 주석, 로그, 테스트 메시지, 커밋, 문서, 보고. 영문은 사용자가 요청할 때만 쓴다. 코드 식별자와 경로는 예외다.
+- **사용자에게 보이는 모든 글은 한글:** 안내, 주석, 로그, 테스트 메시지, 커밋, 문서, 보고. 고객 화면 문구만 영어(PRD 2절). 코드 식별자와 경로는 예외.
 - **앱을 고치면 끝까지 마무리한다:**
-  1. `app/index.html`의 APP_VER(`swc-wf-vN`)와 `app/sw.js`의 CACHE를 함께 올린다.
-  2. 전체 테스트(README 목록)를 돌린다.
-  3. **사용자와 사전 테스트·점검을 마친다.** 로컬 서버로 Chrome(필요하면 같은 와이파이의 iPad)에서 확인하게 하고, 사용자가 승인하기 전에는 커밋·푸시하지 않는다.
-  4. 승인 뒤 origin main에 커밋·푸시한다. `apac` 원격으로는 푸시하지 않는다.
-  5. Pages 배포와 PWA 검사를 확인한다(주소 인자 필수).
-  6. handoff 현재 상태·새 절과 WORKLOG를 기록한다.
-  7. 한글로 보고한다.
-- **수정 금지:**
-  - `F:\Download\Figure draw app`, `F:\Download\SWC2026 APAC Cup_Lucky Draw App`(APAC 완료본)과 APAC 저장소
-  - AE 원본: APAC `(0709) swc2026_oap_APAC_Final`, 월드 결선 `resource/oap/ae-original/`(작업은 `resource/oap/ae-work/` 사본에서)
-  - 사용자가 열어 둔 AE 프로젝트(닫거나 저장하지 않는다)
-- **현장 조건:**
-  - iPad Pro 12.9형 세로(2048×2732).
-  - 실행 중 변수가 적고 iPad 부하가 낮은 방식을 고른다.
-  - 영상은 H.264 레벨 4.2 이하(1024×1366)로 만든다.
-- **운영 데이터:** 상품·영상·소리 등록 상태는 iPad 안에만 있다. 위험한 변경 전에는 사용자에게 관리자 → `.kuji` 백업을 권한다.
+  1. `app/index.html`의 `APP_VER`(`swc-lb-vN`)와 `app/sw.js`의 `CACHE`(`swc2026-world-finals-lucky-bag-vN`)를 함께 올린다.
+  2. 전체 테스트를 돌린다: `node --test "tests/*.test.cjs"`, `node tests/flow-browser.cjs`.
+  3. Jason과 로컬 서버(Chrome, 필요하면 iPad)로 확인하고 승인받기 전에는 커밋·푸시하지 않는다.
+  4. 승인 뒤 `origin`(SSuperWasabi/swc2026-world-finals-lucky-bag)에 푸시한다. `luckydraw`·`apac` 원격으로는 절대 푸시하지 않는다(푸시 주소를 막아 둠).
+  5. handoff 현재 상태와 WORKLOG를 기록하고 한글로 보고한다.
+- **이름 분리:** 같은 `ssuperwasabi.github.io`를 쓰는 럭키드로우 앱과 섞이지 않게 저장 키 `swc2026-world-finals-lucky-bag.*`, 캐시 접두사 `swc2026-world-finals-lucky-bag-`, PWA id `./swc2026-world-finals-lucky-bag`를 유지한다.
+- **수정 금지:** 원본 럭키드로우 저장소와 폴더, AE 원본(`Resource/ae-original/`, 작업은 사본에서).
+- **현장 조건:** iPad Pro 12.9형 세로(2048×2732), 오프라인, 부하가 낮은 방식. 영상은 H.264 레벨 4.2 이하.
+- **운영 데이터:** 재고·기록은 iPad 안(localStorage)에만 있다. 위험한 변경 전에는 관리자 → 백업 내보내기를 권한다.
