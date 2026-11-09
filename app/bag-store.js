@@ -18,19 +18,54 @@
     };
   }
 
+  const T3 = ['A', 'B', 'C'];
+  const okStock = (x) => !!x && typeof x === 'object' && T3.every((t) => Number.isInteger(x[t]) && x[t] >= 0);
+  const okResults = (r, n) => Array.isArray(r) && r.length === n && r.every((t) => T3.includes(t));
+  const okBatches = (b, n) => Array.isArray(b) && b.length > 0 && b.every((x) => Number.isInteger(x) && x > 0) && b.reduce((a, x) => a + x, 0) === n;
+  function okEntry(e) {
+    if (!e || typeof e !== 'object') return false;
+    if (e.type === 'adjust') return okStock(e.before) && okStock(e.after);
+    return e.type === 'purchase' && typeof e.id === 'string' && Number.isInteger(e.qty) && e.qty > 0 &&
+      okResults(e.results, e.qty) && okBatches(e.batches, e.qty) && !!e.settings && (e.status === 'ok' || e.status === 'cancelled');
+  }
+  function okCurrent(c, log) {
+    if (c === null || c === undefined) return true;
+    if (typeof c !== 'object' || !Number.isInteger(c.qty) || !okResults(c.results, c.qty) || !okBatches(c.batches, c.qty)) return false;
+    if (!Number.isInteger(c.batchIndex) || c.batchIndex < 0 || c.batchIndex >= c.batches.length || !Array.isArray(c.revealed)) return false;
+    return log.some((e) => e.type === 'purchase' && e.id === c.id && e.status === 'ok');
+  }
   function validState(s) {
-    const okStock = (x) => x && ['A', 'B', 'C'].every((t) => Number.isInteger(x[t]) && x[t] >= 0);
-    return !!(s && typeof s === 'object' && s.config && okStock(s.stock) && okStock(s.initial) && Array.isArray(s.log) && Number.isInteger(s.seq));
+    return !!(s && typeof s === 'object' && okStock(s.stock) && okStock(s.initial) && Array.isArray(s.log) && s.log.every(okEntry) &&
+      Number.isInteger(s.seq) && okCurrent(s.current, s.log));
+  }
+  // 저장본에 빠진 설정이 있으면 기본값으로 채운다.
+  function withDefaults(s) {
+    const d = defaultState();
+    const cfg = { ...d.config, ...(s.config && typeof s.config === 'object' ? s.config : {}) };
+    if (cfg.unit !== 'single' && cfg.unit !== 'batch') cfg.unit = d.config.unit;
+    if (cfg.reveal !== 'one' && cfg.reveal !== 'all') cfg.reveal = d.config.reveal;
+    if (typeof cfg.dupReduce !== 'boolean') cfg.dupReduce = d.config.dupReduce;
+    if (!/^\d{4,8}$/.test(String(cfg.pin))) cfg.pin = d.config.pin;
+    return { ...d, ...s, config: cfg, current: s.current || null };
   }
 
   function createStore(storage, opts) {
     const now = (opts && opts.now) || (() => Date.now());
     const rng = (opts && opts.rng) || Math.random;
     let state = defaultState();
-    try {
-      const raw = storage.getItem(STORAGE_KEY);
-      if (raw) { const s = JSON.parse(raw); if (validState(s)) state = { ...defaultState(), ...s, config: { ...defaultState().config, ...s.config } }; }
-    } catch (e) { /* 읽기 실패 시 기본값 */ }
+    let loadError = null;
+    let raw = null;
+    try { raw = storage.getItem(STORAGE_KEY); } catch (e) { loadError = '저장소를 읽을 수 없어요.'; }
+    if (raw) {
+      let s = null;
+      try { s = JSON.parse(raw); } catch (e) { /* 아래에서 처리 */ }
+      if (validState(s)) state = withDefaults(s);
+      else {
+        // 깨진 저장본은 지우지 않고 따로 보관한 뒤 기본값으로 시작한다(직원에게 알림).
+        loadError = '저장된 재고·기록을 읽지 못했어요. 원본은 따로 보관했어요.';
+        try { storage.setItem(`${STORAGE_KEY}.corrupt-${now()}`, raw); } catch (e) { /* 보관 실패 */ }
+      }
+    }
 
     function commit(next) {
       try { storage.setItem(STORAGE_KEY, JSON.stringify(next)); }
@@ -86,7 +121,28 @@
       return true;
     }
 
+    // 진행 중 구매에서 이미 공개한 카드만 남기고, 아직 안 연 몫은 재고로 돌린다(수량을 잘못 넣었을 때).
+    function trimPurchase(id) {
+      const c = state.current;
+      if (!c || c.id !== id || c.done) return false;
+      const start = c.batches.slice(0, c.batchIndex).reduce((a, b) => a + b, 0);
+      const cur = c.results.slice(start, start + c.batches[c.batchIndex]);
+      const kept = [...c.results.slice(0, start), ...c.revealed.slice().sort((a, b) => a - b).map((i) => cur[i])];
+      if (!kept.length) return false;
+      const next = clone(state);
+      const n = next.current;
+      const returned = n.results.slice();
+      kept.forEach((t) => returned.splice(returned.indexOf(t), 1));
+      returned.forEach((t) => { next.stock[t] += 1; });
+      const e = next.log.find((x) => x.type === 'purchase' && x.id === id);
+      e.trimmedFrom = e.qty; e.qty = kept.length; e.results = kept; e.batches = [kept.length]; e.trimTs = iso();
+      Object.assign(n, { qty: kept.length, results: kept, batches: [kept.length], batchIndex: 0, revealed: kept.map((_, i) => i), done: true });
+      commit(next);
+      return kept.slice();
+    }
+
     function setStock(stock, note) {
+      if (state.current) throw new Error('진행 중인 구매가 있어요. 구매를 끝낸 뒤 재고를 고쳐 주세요.');
       const s = { A: stock.A, B: stock.B, C: stock.C };
       if (!['A', 'B', 'C'].every((t) => Number.isInteger(s[t]) && s[t] >= 0)) throw new Error('재고는 0 이상의 정수로 넣어 주세요.');
       const next = clone(state);
@@ -128,12 +184,13 @@
       let data;
       try { data = JSON.parse(json); } catch (e) { throw new Error('백업 파일을 읽을 수 없어요.'); }
       if (!data || data.app !== 'swc2026-world-finals-lucky-bag' || !validState(data.state)) throw new Error('럭키백 앱 백업 파일이 아니에요.');
-      commit(clone(data.state));
+      commit(withDefaults(clone(data.state)));
     }
 
     return {
       get state() { return clone(state); },
-      startPurchase, markRevealed, nextBatch, finishPurchase, cancelPurchase,
+      get loadError() { return loadError; },
+      startPurchase, markRevealed, nextBatch, finishPurchase, cancelPurchase, trimPurchase,
       setStock, setConfig, resetAll, toCSV, exportBackup, importBackup,
     };
   }

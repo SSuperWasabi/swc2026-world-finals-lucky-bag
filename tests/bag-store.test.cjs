@@ -125,6 +125,73 @@ test('resetAll: 재고·기록·진행 초기화, 설정은 유지', () => {
   assert.equal(st.state.config.unit, 'single');
 });
 
+test('trimPurchase: 진행 중 구매에서 공개한 카드만 남기고 나머지는 재고로', () => {
+  const st = createStore(memStorage(), { rng });
+  const p = st.startPurchase(10);
+  st.markRevealed(0); st.markRevealed(1); st.markRevealed(2);
+  const kept = st.trimPurchase(p.id);
+  assert.deepEqual(kept, p.results.slice(0, 3));
+  assert.equal(sum(st.state.stock), 297);
+  const e = st.state.log[0];
+  assert.equal(e.qty, 3);
+  assert.deepEqual(e.results, p.results.slice(0, 3));
+  assert.equal(e.trimmedFrom, 10);
+  assert.equal(st.state.current.done, true);
+  assert.equal(st.state.current.qty, 3);
+});
+
+test('trimPurchase: 진행 중이 아니면 false', () => {
+  const st = createStore(memStorage(), { rng });
+  const p = st.startPurchase(2); st.finishPurchase();
+  assert.equal(st.trimPurchase(p.id), false);
+});
+
+test('setStock: 진행 중 구매가 있으면 막힘', () => {
+  const st = createStore(memStorage(), { rng });
+  st.startPurchase(2);
+  assert.throws(() => st.setStock({ A: 1, B: 1, C: 1 }), /진행 중인 구매/);
+});
+
+test('저장 데이터가 깨졌으면 원본을 따로 보관하고 loadError를 알림', () => {
+  const mem = memStorage();
+  mem.setItem(STORAGE_KEY, '{"stock":{"A":"x"}}');
+  const st = createStore(mem, { rng, now: () => 1234 });
+  assert.ok(st.loadError);
+  assert.equal(mem.getItem(STORAGE_KEY + '.corrupt-1234'), '{"stock":{"A":"x"}}');
+  assert.equal(sum(st.state.stock), 300);
+});
+
+test('정상 저장 데이터면 loadError 없음', () => {
+  const mem = memStorage();
+  createStore(mem, { rng }).startPurchase(1);
+  assert.equal(createStore(mem, { rng }).loadError, null);
+});
+
+test('백업: config가 비어 있으면 기본값을 채움', () => {
+  const src = createStore(memStorage(), { rng });
+  const data = JSON.parse(src.exportBackup());
+  data.state.config = {};
+  const st = createStore(memStorage(), { rng });
+  st.importBackup(JSON.stringify(data));
+  assert.deepEqual(st.state.config, { unit: 'batch', reveal: 'one', dupReduce: true, pin: '0000' });
+});
+
+test('백업: 기록 항목 모양이 틀리면 거부', () => {
+  const src = createStore(memStorage(), { rng });
+  src.startPurchase(2); src.finishPurchase();
+  const data = JSON.parse(src.exportBackup());
+  delete data.state.log[0].results;
+  assert.throws(() => createStore(memStorage(), { rng }).importBackup(JSON.stringify(data)), /백업 파일/);
+});
+
+test('백업: 진행 중 구매 모양이 틀리면 거부', () => {
+  const src = createStore(memStorage(), { rng });
+  src.startPurchase(4);
+  const data = JSON.parse(src.exportBackup());
+  data.state.current.results = ['A'];
+  assert.throws(() => createStore(memStorage(), { rng }).importBackup(JSON.stringify(data)), /백업 파일/);
+});
+
 test('저장 키 이름이 럭키백 전용', () => {
   assert.equal(STORAGE_KEY, 'swc2026-world-finals-lucky-bag.state.v1');
 });

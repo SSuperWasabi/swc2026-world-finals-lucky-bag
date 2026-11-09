@@ -45,6 +45,12 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
     if (stateSetup) await page.evaluate(stateSetup);
     await page.reload();
     await page.waitForFunction(() => window.__app);
+    // 사람 손처럼: 화면 전환 직후 탭 무시 시간(0.45초)이 지난 뒤 누른다. 더블탭 검사는 page.mouse로 따로 한다.
+    const click = page.click.bind(page);
+    page.click = async (sel, opts) => {
+      await page.waitForFunction(() => performance.now() >= window.__app.guardUntil);
+      return click(sel, opts);
+    };
     return { ctx, page };
   }
   const idle = (page) => page.waitForFunction(() => !window.__app.busy);
@@ -104,6 +110,7 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
     const { ctx, page } = await fresh();
     await page.click('#stage', { position: { x: 500, y: 900 } });
     await page.waitForSelector('#scr-staff.on');
+    await page.waitForFunction(() => performance.now() >= window.__app.guardUntil);
     await page.evaluate(() => { for (let i = 0; i < 5; i++) document.getElementById('qStart').click(); });
     await idle(page);
     eq((await st(page)).log.length, 1, '기록 수');
@@ -173,6 +180,75 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
     const s = await st(page);
     eq(s.stock.A + s.stock.B + s.stock.C, 300, '재고 복원');
     eq(s.current, null, '진행 중 구매도 비움');
+    await ctx.close();
+  });
+
+  // 화면이 바뀐 직후 같은 자리 두 번째 탭이 새 화면 버튼을 누르지 않아야 한다.
+  async function dbl(page, x, y) { await page.mouse.click(x, y); await page.waitForTimeout(150); await page.mouse.click(x, y); await page.waitForTimeout(300); }
+  async function centerOf(page, sel) { const b = await page.locator(sel).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; }
+
+  await check('대기 화면 아래쪽 더블탭 → 구매가 시작되지 않음', async () => {
+    const { ctx, page } = await fresh();
+    await page.click('#stage', { position: { x: 500, y: 900 } }); await page.waitForSelector('#scr-staff.on');
+    const [x, y] = await centerOf(page, '#qStart');
+    await page.click('#qCancel'); await page.waitForSelector('#scr-idle.on'); await page.waitForTimeout(500);
+    await dbl(page, x, y);
+    eq((await st(page)).log.length, 0, '구매 기록 없음');
+    eq(await page.isVisible('#scr-staff.on'), true, '직원 화면에 머묾');
+    await ctx.close();
+  });
+
+  await check('[지급 완료] 더블탭 → 요약 화면을 건너뛰지 않음', async () => {
+    const { ctx, page } = await fresh();
+    await startQty(page, 1);
+    await revealBatchOneByOne(page);
+    const [x, y] = await centerOf(page, '#dNext');
+    await dbl(page, x, y);
+    eq(await page.isVisible('#scr-summary.on'), true, '요약 화면');
+    await ctx.close();
+  });
+
+  await check('초기화 첫 확인 더블탭 → 두 번째 확인이 눌리지 않음', async () => {
+    const { ctx, page } = await fresh();
+    await startQty(page, 1); await revealBatchOneByOne(page); await page.click('#dNext'); await page.waitForSelector('#scr-summary.on');
+    await page.waitForTimeout(500); await page.click('#sNext'); await page.waitForSelector('#scr-idle.on'); await page.waitForTimeout(500);
+    for (let i = 0; i < 5; i++) await page.click('#tapzone');
+    for (const k of '0000') await page.click(`#pinGrid [data-k="${k}"]`);
+    await page.click('#admTabs [data-t="backup"]');
+    await page.click('#bkReset'); await page.waitForTimeout(500);
+    const [x, y] = await centerOf(page, '#mYes');
+    await dbl(page, x, y);
+    eq((await st(page)).log.length, 1, '기록 그대로');
+    await ctx.close();
+  });
+
+  await check('연출이 오류를 내도 앱이 잠기지 않음', async () => {
+    const { ctx, page } = await fresh();
+    await startQty(page, 3);
+    await page.evaluate(() => { window.Reveal.flip = () => { throw new Error('연출 오류'); }; });
+    await page.locator('#slots .slot').first().click();
+    await page.waitForFunction(() => !window.__app.busy, null, { timeout: 5000 });
+    eq((await st(page)).current.revealed, [0], '결과는 저장됨');
+    await ctx.close();
+  });
+
+  await check('저장 데이터가 깨졌으면 직원에게 알림', async () => {
+    const { ctx, page } = await fresh(() => localStorage.setItem('swc2026-world-finals-lucky-bag.state.v1', '{"stock":{"A":"x"}}'));
+    eq(await page.isVisible('#modal.on'), true, '알림 창');
+    await ctx.close();
+  });
+
+  await check('관리자: 진행 중 구매는 [남은 것만 취소]로 공개한 카드만 남김', async () => {
+    const { ctx, page } = await fresh();
+    await startQty(page, 10);
+    await page.locator('#slots .slot').first().click(); await idle(page);
+    for (let i = 0; i < 5; i++) await page.click('#tapzone');
+    for (const k of '0000') await page.click(`#pinGrid [data-k="${k}"]`);
+    await page.click('#admTabs [data-t="log"]');
+    await page.click('[data-trim]'); await page.waitForTimeout(450); await page.click('#mYes');
+    const s = await st(page);
+    eq(s.stock.A + s.stock.B + s.stock.C, 299, '1개만 판매로 남음');
+    eq(s.log[0].qty, 1, '기록 수량');
     await ctx.close();
   });
 

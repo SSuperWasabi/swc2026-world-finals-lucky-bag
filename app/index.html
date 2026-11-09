@@ -198,9 +198,29 @@
 const APP_VER = 'swc-lb-v1'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
-const store = BagStore.createStore(window.localStorage);
+// 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
+let storageBlocked = false;
+const storage = (() => {
+  try { const s = window.localStorage; s.getItem('probe'); return s; }
+  catch (e) { storageBlocked = true; const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; }
+})();
+const store = BagStore.createStore(storage);
 const TYPES = BagEngine.TYPES;
 let busy = false;
+
+/* 화면이 바뀐 직후 같은 자리를 한 번 더 누른 탭이 새 화면 버튼을 누르지 않게 잠깐 무시한다. */
+let guardUntil = 0;
+function guard(ms = 450) { guardUntil = performance.now() + ms; }
+stage.addEventListener('click', (e) => { if (performance.now() < guardUntil) { e.stopPropagation(); e.preventDefault(); } }, true);
+
+/* 연출은 언제 바뀔지 모르는 부분이라, 오류를 내거나 끝나지 않아도 정해진 시간 안에 앱이 다시 움직이게 한다. */
+function runAnim(fn, maxMs) {
+  return Promise.race([Promise.resolve().then(fn).catch((e) => console.error('연출 오류', e)), new Promise((r) => setTimeout(r, maxMs))]);
+}
+function ensureShown(slot, type) {
+  if (slot.classList.contains('flipped')) return;
+  try { Reveal.show(slot, type); } catch (e) { slot.classList.add('flipped'); }
+}
 
 /* ── 무대 맞춤 ── */
 function fit() {
@@ -211,14 +231,18 @@ addEventListener('resize', fit); fit();
 
 /* ── 공통 ── */
 function go(id) {
+  guard();
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
   stage.classList.toggle('notitle', id === 'scr-admin');
 }
 let toastT;
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('on'), 2600); }
-function ask(text, yesLabel = '예') {
+function ask(text, yesLabel = '예', noLabel = '아니요') {
   return new Promise((res) => {
-    $('mText').textContent = text; $('mYes').textContent = yesLabel; $('modal').classList.add('on');
+    guard();
+    $('mText').textContent = text; $('mYes').textContent = yesLabel;
+    $('mNo').textContent = noLabel || ''; $('mNo').style.display = noLabel ? '' : 'none';
+    $('modal').classList.add('on');
     const done = (v) => { $('modal').classList.remove('on'); $('mYes').onclick = $('mNo').onclick = null; res(v); };
     $('mYes').onclick = () => done(true); $('mNo').onclick = () => done(false);
   });
@@ -244,7 +268,7 @@ let taps = [];
 $('tapzone').addEventListener('click', (e) => {
   e.stopPropagation();
   const t = Date.now(); taps = taps.filter((x) => t - x < 3000); taps.push(t);
-  if (taps.length >= 5 && !busy) { taps = []; openPin(); }
+  if (taps.length >= 5) { taps = []; openPin(); }
 });
 
 /* ── 직원 화면 ── */
@@ -306,7 +330,7 @@ function renderDraw(fresh) {
   updateDraw();
   if (fresh || c.revealed.length === 0) {
     busy = true; updateDraw();
-    Reveal.enter(slots).finally(() => { busy = false; updateDraw(); });
+    runAnim(() => Reveal.enter(slots), 3000).then(() => { busy = false; updateDraw(); });
   }
 }
 function revealedSoFar(c) {
@@ -348,7 +372,8 @@ function tapCard(i) {
   busy = true;
   try { store.markRevealed(i); } catch (e) { busy = false; toast(e.message); return; }
   updateDraw();
-  Reveal.flip($('slots').children[i], types[i]).finally(() => { busy = false; updateDraw(); });
+  const slot = $('slots').children[i];
+  runAnim(() => Reveal.flip(slot, types[i]), 4000).then(() => { ensureShown(slot, types[i]); busy = false; updateDraw(); });
 }
 function openAll() {
   const c = store.state.current;
@@ -358,7 +383,9 @@ function openAll() {
   busy = true;
   try { todo.forEach((i) => store.markRevealed(i)); } catch (e) { busy = false; toast(e.message); return; }
   updateDraw();
-  Promise.all(todo.map((i) => Reveal.flip($('slots').children[i], types[i]))).finally(() => { busy = false; updateDraw(); });
+  const slots = $('slots').children;
+  runAnim(() => Promise.all(todo.map((i) => Reveal.flip(slots[i], types[i]))), 4000)
+    .then(() => { todo.forEach((i) => ensureShown(slots[i], types[i])); busy = false; updateDraw(); });
 }
 function nextStep() {
   if (busy) return;
@@ -442,7 +469,9 @@ function paneStock() {
     TYPES.map((t) => `<div class="row"><div>${t} 남은 재고<em>판매 ${sold[t]}개</em></div><input class="inp" id="stk${t}" type="number" inputmode="numeric" min="0" value="${st.stock[t]}"></div>`).join('') +
     `<div class="row" style="flex-direction:column;align-items:stretch"><div>고친 이유</div><input class="inp wide" id="stkNote" placeholder="예: 실물 재고 확인"></div>` +
     `<div style="display:flex;justify-content:flex-end;margin-top:40px"><button class="act" id="stkSave">재고 저장</button></div>` +
-    `<div class="note">남은 합계 ${BagEngine.total(st.stock)}개 · 정상 판매 ${sold.A + sold.B + sold.C}개. 재고를 고치면 기록에 고치기 전·후가 남아요.</div>`;
+    `<div class="note">남은 합계 ${BagEngine.total(st.stock)}개 · 정상 판매 ${sold.A + sold.B + sold.C}개. 재고를 고치면 기록에 고치기 전·후가 남아요.</div>` +
+    (st.current ? `<div class="note" style="color:#ffd166">진행 중인 구매 #${st.current.no}가 있어요. 이 구매의 결과 ${st.current.qty}개는 이미 재고에서 빠져 있어서, 지금 실물과 맞추면 어긋나요. 구매를 끝낸 뒤 고쳐 주세요.</div>` : '');
+  if (st.current) $('stkSave').disabled = true;
   $('stkSave').onclick = async () => {
     const s = {}; for (const t of TYPES) s[t] = Number($('stk' + t).value);
     if (!TYPES.every((t) => Number.isInteger(s[t]) && s[t] >= 0)) return toast('재고는 0 이상의 정수로 넣어 주세요');
@@ -452,19 +481,32 @@ function paneStock() {
   };
 }
 function fmtTime(iso) { const d = new Date(iso); return d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: false }); }
+function shownCount(c) { return revealedSoFar(c).length; }
 function paneLog() {
   const st = store.state;
+  const cur = st.current;
   const items = [...st.log].reverse();
   const purchases = st.log.filter((e) => e.type === 'purchase' && e.status === 'ok');
   $('admPane').innerHTML =
     `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px"><div style="font-size:44px">정상 ${purchases.length}건 · ${purchases.reduce((n, e) => n + e.qty, 0)}개</div><button class="act" id="csvBtn">CSV 내보내기</button></div>` +
     `<div class="log">${items.length ? items.map((e) => e.type === 'purchase'
-      ? `<div class="row"><div class="${e.status === 'cancelled' ? 'cx' : ''}">#${e.no} · ${fmtTime(e.ts)} · ${e.qty}개<em class="res">${e.results.join(' ')}</em></div>${e.status === 'ok' ? `<button class="act danger" data-cancel="${e.id}">취소</button>` : '<span style="font-size:38px;color:#ff9a9a">취소됨</span>'}</div>`
+      ? `<div class="row"><div class="${e.status === 'cancelled' ? 'cx' : ''}">#${e.no} · ${fmtTime(e.ts)} · ${e.qty}개${e.trimmedFrom ? ` (${e.trimmedFrom}개에서 줄임)` : ''}${cur && cur.id === e.id && !cur.done ? ' · <b style="color:#ffd166">진행 중</b>' : ''}<em class="res">${e.results.join(' ')}</em></div>` +
+        (e.status !== 'ok' ? '<span style="font-size:38px;color:#ff9a9a">취소됨</span>'
+          : `<div style="display:flex;gap:16px">${cur && cur.id === e.id && !cur.done && shownCount(cur) > 0 ? `<button class="act" data-trim="${e.id}">남은 것만 취소</button>` : ''}<button class="act danger" data-cancel="${e.id}">${cur && cur.id === e.id && !cur.done ? '전체 취소' : '취소'}</button></div>`) + `</div>`
       : `<div class="row"><div>재고 수정 · ${fmtTime(e.ts)}<em>A ${e.before.A}→${e.after.A} · B ${e.before.B}→${e.after.B} · C ${e.before.C}→${e.after.C}${e.note ? ' · ' + e.note : ''}</em></div></div>`).join('') : '<div class="note">아직 기록이 없어요.</div>'}</div>`;
   $('csvBtn').onclick = () => saveFile(`luckybag-log-${stamp()}.csv`, '﻿' + store.toCSV(), 'text/csv');
+  $('admPane').querySelectorAll('[data-trim]').forEach((b) => b.onclick = async () => {
+    const shown = revealedSoFar(cur);
+    if (!(await ask(`#${cur.no} 구매를 공개한 ${shown.length}개(${shown.join(' ')})만 남기고\n아직 안 연 ${cur.qty - shown.length}개는 재고로 돌릴까요?`, '남은 것만 취소'))) return;
+    try { store.trimPurchase(cur.id) ? toast(`${shown.length}개만 남겼어요`) : toast('줄일 수 없는 구매예요'); } catch (er) { toast(er.message); }
+    paneLog();
+  });
   $('admPane').querySelectorAll('[data-cancel]').forEach((b) => b.onclick = async () => {
     const e = st.log.find((x) => x.id === b.dataset.cancel);
-    if (!(await ask(`#${e.no} 구매(${e.qty}개: ${e.results.join(' ')})를 취소할까요?\n재고가 다시 늘어나요.`, '구매 취소'))) return;
+    const live = cur && cur.id === e.id && !cur.done;
+    const shown = live ? revealedSoFar(cur) : [];
+    const warn = shown.length ? `\n⚠ 이미 공개한 ${shown.length}개(${shown.join(' ')})도 재고로 돌아가요.\n이미 나눠 줬다면 [남은 것만 취소]를 쓰세요.` : '\n재고가 다시 늘어나요.';
+    if (!(await ask(`#${e.no} 구매(${e.qty}개: ${e.results.join(' ')})를 모두 취소할까요?${warn}`, '구매 취소'))) return;
     try { store.cancelPurchase(e.id) ? toast('취소했어요') : toast('이미 취소된 구매예요'); } catch (er) { toast(er.message); }
     paneLog();
   });
@@ -507,7 +549,10 @@ document.addEventListener('pointerdown', keepAwake);
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') keepAwake(); });
 
 /* ── 시작: 진행 중 구매가 있으면 이어서 ── */
-if (store.state.current) renderDraw(false); else showIdle();
+try { if (store.state.current) renderDraw(false); else showIdle(); }
+catch (e) { console.error(e); busy = false; showIdle(); toast('진행 중 구매를 다시 그리지 못했어요. 관리자 → 기록을 확인해 주세요.'); }
+if (storageBlocked) ask('이 iPad에서 저장소를 쓸 수 없어요.\n설정 → Safari → 모든 쿠키 차단을 끄고 앱을 다시 열어 주세요.\n지금 상태로는 판매 기록이 남지 않아요.', '확인', '');
+else if (store.loadError) ask(`${store.loadError}\n재고가 처음 값(각 100)으로 보여요.\n관리자 → 백업 가져오기로 되살리거나 재고를 맞춰 주세요.`, '확인', '');
 
 /* ── 오프라인 캐시 ── */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
@@ -517,7 +562,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || refreshing || busy) return; refreshing = true; location.reload(); });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }
-window.__app = { store, APP_VER, get busy() { return busy; } }; /* 테스트·점검용 */
+window.__app = { store, APP_VER, get busy() { return busy; }, get guardUntil() { return guardUntil; } }; /* 테스트·점검용 */
 </script>
 </body>
 </html>
