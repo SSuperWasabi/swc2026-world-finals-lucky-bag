@@ -178,8 +178,10 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
 
   await check('오프라인에서 새로 고침해도 앱이 뜸 (Service Worker 캐시)', async () => {
     const { ctx, page } = await fresh();
+    // 캐시가 다 차고 이 페이지를 Service Worker가 맡을 때까지 기다린 뒤 오프라인으로 바꾼다.
     await page.evaluate(() => navigator.serviceWorker.ready);
-    await page.reload(); await page.waitForFunction(() => window.__app);
+    await page.waitForFunction(() => navigator.serviceWorker.controller);
+    eq(await page.isVisible('#scr-idle.on'), true, '처음 설치 때 저절로 새로 고침되지 않음');
     await ctx.setOffline(true);
     await page.reload(); await page.waitForFunction(() => window.__app, null, { timeout: 5000 });
     eq(await page.isVisible('#scr-idle.on'), true, '대기 화면');

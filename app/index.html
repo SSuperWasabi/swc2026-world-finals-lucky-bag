@@ -511,8 +511,10 @@ if (store.state.current) renderDraw(false); else showIdle();
 
 /* ── 오프라인 캐시 ── */
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  // 새 버전으로 바뀔 때만 새로 고침한다. 처음 설치(이전 컨트롤러 없음) 때는 그대로 둔다.
   let refreshing = false;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (refreshing || busy) return; refreshing = true; location.reload(); });
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || refreshing || busy) return; refreshing = true; location.reload(); });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }
 window.__app = { store, APP_VER, get busy() { return busy; } }; /* 테스트·점검용 */
