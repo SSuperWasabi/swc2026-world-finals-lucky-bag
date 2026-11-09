@@ -1,8 +1,8 @@
 {
-  "id": "./swc2026-world-finals-lucky-draw",
-  "name": "SWC2026 World Finals Lucky Draw",
-  "short_name": "SWC World Draw",
-  "description": "SWC2026 World Finals 경품 추첨 이벤트",
+  "id": "./swc2026-world-finals-lucky-bag",
+  "name": "SWC Lucky Bag",
+  "short_name": "SWC Lucky Bag",
+  "description": "SWC2026 World Finals 컴투스 스토어 럭키백 뽑기",
   "start_url": "./index.html",
   "scope": "./",
   "display": "fullscreen",

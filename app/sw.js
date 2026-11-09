@@ -1,132 +1,66 @@
-/* SWC2026 World Finals Lucky Draw — Service Worker
-   앱 자산을 사전 캐싱해 오프라인에서도 동작하게 한다.
-   ※ 앱을 수정·재배포할 때는 CACHE 버전을 올려야 태블릿이 새 버전을 받는다. */
-const CACHE = 'swc2026-world-finals-lucky-draw-v9';
+/* SWC2026 World Finals Lucky Bag — Service Worker
+   앱 자산을 미리 캐시해 첫 실행 뒤에는 인터넷 없이 돈다.
+   ※ 앱을 고쳐 다시 배포할 때는 CACHE 버전과 index.html의 APP_VER를 함께 올린다. */
+const CACHE = 'swc2026-world-finals-lucky-bag-v1';
+const PREFIX = 'swc2026-world-finals-lucky-bag-';
 const ASSETS = [
-  './idle-video.js',
-  './result-video.js',
-  './figure.css',
-  './draw-engine.js',
-  './figure.js',
-  './scroll-audio.js',
-  './choose-screen.js',
-  './transition.js',
-  './assets/oap/transition/transition-matte.mp4',
-  './assets/oap/grade/congrats-A.mp4',
-  './assets/oap/grade/congrats-B.mp4',
-  './assets/oap/grade/congrats-sound.wav',
-  './assets/figure/open-touch-all.wav',
-  './assets/figure/open-touch-hit.wav',
-  './assets/figure/open-touch-chime.wav',
-  './assets/oap/grade/grade-A.png',
-  './assets/oap/grade/grade-B.png',
-  './assets/oap/grade/grade-C.png',
-  './assets/oap/grade/grade-D.png',
-  './assets/oap/grade/grade-E.png',
-  './assets/oap/grade/grade-F.png',
-  './assets/oap/grade/grade-G.png',
-  './assets/oap/grade/grade-H.png',
-  './assets/oap/transition/transition-color.mp4',
-  './assets/oap/choose/choose-bg-intro.mp4',
-  './assets/oap/choose/choose-bg-loop.mp4',
-  './assets/oap/choose/select.webp',
-  './assets/oap/choose/scroll-01.webp',
-  './assets/oap/choose/scroll-02.webp',
-  './assets/oap/choose/scroll-03.webp',
-  './assets/oap/choose/scroll-04.webp',
-  './assets/oap/choose/scroll-05.webp',
-  './assets/oap/choose/scroll-06.webp',
-  './assets/oap/choose/scroll-07.webp',
-  './assets/oap/choose/scroll-08.webp',
-  './assets/oap/choose/scroll-09.webp',
-  './assets/oap/choose/scroll-10.webp',
-  './assets/oap/choose/scroll-11.webp',
-  './assets/oap/choose/scroll-12.webp',
-  './assets/oap/choose/scroll-art.webp',
-  './assets/oap/open/open-frame-loop.mp4',
-  './assets/figure/scroll.webp',
-  './assets/figure/scroll-card.webp',
-  './assets/figure/zeratu.webp',
-  './assets/figure/arena.webp',
-  './assets/figure/sacred-idle.mp4',
-  './assets/figure/sacred-open.mp4',
-  './assets/figure/sacred-open.wav',
-  './assets/figure/sacred-idle.wav',
-  './assets/figure/sacred-poster.jpg',
-  './assets/figure/zeratu-summon.mp4',
-  './assets/figure/zeratu-summon.jpg',
-  './assets/figure/zeratu-summon.wav',
-  './assets/frames/frame-normal.png?v=2',
-  './assets/frames/frame-purple-card.png?v=2',
-  './assets/frames/frame-gold-card.png?v=2',
   './',
   './index.html',
   './manifest.webmanifest',
+  './bag-engine.js',
+  './bag-store.js',
+  './reveal.js',
   './assets/icon-192.png',
   './assets/icon-512.png',
-  './assets/idle-fallback.jpg',
-  './assets/com2us-store-logo-white.svg',
   './assets/com2us-store-lockup-white.svg',
-  './assets/fonts/Pretendard-Light.otf',
-  './assets/fonts/Pretendard-Regular.otf',
-  './assets/fonts/Pretendard-Medium.otf',
-  './assets/fonts/Pretendard-SemiBold.otf',
   './assets/fonts/Pretendard-Bold.otf',
-  './assets/fonts/Pretendard-ExtraBold.otf',
-  './assets/fonts/Pretendard-Black.otf',
-  './assets/fonts/Gyoza-Black.otf',
-  './assets/fonts/CookieRun-Regular.ttf',
-  './assets/fonts/CookieRun-Bold.ttf',
-  './assets/fonts/CookieRun-Black.ttf',
   './assets/fonts/Unbounded-Variable.ttf',
-  './assets/badges/badge-a.png',
-  './assets/badges/badge-b.png',
-  './assets/badges/badge-c.png',
-  './assets/badges/badge-d.png',
-  './assets/badges/badge-e.png',
-  './assets/badges/badge-f.png',
-  './assets/badges/badge-special.png',
-  './assets/badges/badge-lucky.png'
+  './assets/lb/bg-streaks.jpg',
+  './assets/lb/card-back.png',
+  './assets/lb/card-front-a.png',
+  './assets/lb/card-front-b.png',
+  './assets/lb/card-front-c.png',
+  './assets/lb/sd-yeonhong.png',
+  './assets/lb/sd-ragdoll.png',
+  './assets/lb/sd-oracle.png',
+  './assets/lb/emblem-key.png',
+  './assets/lb/emblem-x-white.png',
 ];
 
-self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS.map(url=>new Request(url,{cache:'reload'})))).then(() => self.skipWaiting()));
+self.addEventListener('install', (e) => {
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
-self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('swc2026-world-finals-lucky-draw-') && k !== CACHE).map(k => caches.delete(k))))
-      .then(() => self.clients.claim())
-  );
+self.addEventListener('activate', (e) => {
+  e.waitUntil(caches.keys()
+    .then((keys) => Promise.all(keys.filter((k) => k.startsWith(PREFIX) && k !== CACHE).map((k) => caches.delete(k))))
+    .then(() => self.clients.claim()));
 });
 
-/* 캐시 우선(cache-first): 캐시에 있으면 즉시 반환, 없으면 네트워크 후 캐시에 저장.
-   업로드한 이미지·영상·BGM은 IndexedDB에 있으므로 SW 캐싱 대상이 아니다. */
-self.addEventListener('fetch', e => {
+/* 캐시 우선: 있으면 바로 주고, 없으면 네트워크에서 받아 캐시에 넣는다. 영상용 Range 요청도 캐시에서 잘라 준다. */
+self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
-  if(new URL(e.request.url).origin!==self.location.origin)return;
-  e.respondWith((async()=>{
-    const cache=await caches.open(CACHE);
-    const hit=await cache.match(e.request);
-    if(hit){
-      const range=e.request.headers.get('range');
-      if(range){
-        const bytes=await hit.arrayBuffer(),match=/^bytes=(\d*)-(\d*)$/.exec(range);
-        if(!match)return new Response(null,{status:416,headers:{'Content-Range':`bytes */${bytes.byteLength}`}});
-        const start=match[1]?Number(match[1]):Math.max(0,bytes.byteLength-Number(match[2]));
-        const end=match[1]&&match[2]?Math.min(Number(match[2]),bytes.byteLength-1):bytes.byteLength-1;
-        if(start>end||start>=bytes.byteLength)return new Response(null,{status:416,headers:{'Content-Range':`bytes */${bytes.byteLength}`}});
-        return new Response(bytes.slice(start,end+1),{status:206,headers:{'Content-Type':hit.headers.get('Content-Type')||'video/mp4','Content-Range':`bytes ${start}-${end}/${bytes.byteLength}`,'Content-Length':String(end-start+1),'Accept-Ranges':'bytes'}});
-      }
-      return hit;
+  if (new URL(e.request.url).origin !== self.location.origin) return;
+  e.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    const hit = await cache.match(e.request, { ignoreSearch: e.request.mode === 'navigate' });
+    if (hit) {
+      const range = e.request.headers.get('range');
+      if (!range) return hit;
+      const bytes = await hit.arrayBuffer(), m = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!m) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.byteLength}` } });
+      const start = m[1] ? Number(m[1]) : Math.max(0, bytes.byteLength - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), bytes.byteLength - 1) : bytes.byteLength - 1;
+      if (start > end || start >= bytes.byteLength) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.byteLength}` } });
+      return new Response(bytes.slice(start, end + 1), { status: 206, headers: { 'Content-Type': hit.headers.get('Content-Type') || 'video/mp4', 'Content-Range': `bytes ${start}-${end}/${bytes.byteLength}`, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
     }
-    try{
-      const response=await fetch(e.request);
-      if(response.status===200&&response.type==='basic')e.waitUntil(cache.put(e.request,response.clone()).catch(()=>{}));
-      return response;
-    }catch{
-      if(e.request.mode==='navigate'){const page=await cache.match('./index.html');if(page)return page;}
-      return new Response('Offline resource unavailable',{status:503,statusText:'Offline'});
+    try {
+      const res = await fetch(e.request);
+      if (res.status === 200 && res.type === 'basic') e.waitUntil(cache.put(e.request, res.clone()).catch(() => {}));
+      return res;
+    } catch {
+      if (e.request.mode === 'navigate') { const page = await cache.match('./index.html'); if (page) return page; }
+      return new Response('Offline resource unavailable', { status: 503, statusText: 'Offline' });
     }
   })());
 });
