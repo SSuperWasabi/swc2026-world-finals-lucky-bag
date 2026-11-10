@@ -20,7 +20,7 @@ test('startPurchase(10): 재고 300→290, 기록 1건, 묶음 [3,3,3,1]', () =>
   assert.deepEqual(p.batches, [3, 3, 3, 1]);
   assert.equal(p.results.length, 10);
   assert.equal(st.state.log[0].no, 1);
-  assert.deepEqual(st.state.log[0].settings, { unit: 'batch', reveal: 'one', dupReduce: true });
+  assert.deepEqual(st.state.log[0].settings, { unit: 'batch', reveal: 'all', dupReduce: true, resultConfirm: true });
 });
 
 test('resume: 같은 저장소로 다시 만들면 진행 중 구매가 그대로', () => {
@@ -173,7 +173,7 @@ test('백업: config가 비어 있으면 기본값을 채움', () => {
   data.state.config = {};
   const st = createStore(memStorage(), { rng });
   st.importBackup(JSON.stringify(data));
-  assert.deepEqual(st.state.config, { unit: 'batch', reveal: 'one', dupReduce: true, pin: '0000' });
+  assert.deepEqual(st.state.config, { unit: 'batch', reveal: 'all', dupReduce: true, resultConfirm: true, pin: '0000' });
 });
 
 test('백업: 기록 항목 모양이 틀리면 거부', () => {
@@ -190,6 +190,19 @@ test('백업: 진행 중 구매 모양이 틀리면 거부', () => {
   const data = JSON.parse(src.exportBackup());
   data.state.current.results = ['A'];
   assert.throws(() => createStore(memStorage(), { rng }).importBackup(JSON.stringify(data)), /백업 파일/);
+});
+
+test('결과 확인 설정: 구매 시작 때 고정되고, 예전 저장본은 켜기로 채움', () => {
+  const mem = memStorage();
+  const st = createStore(mem, { rng });
+  st.setConfig({ resultConfirm: false });
+  const p = st.startPurchase(2);
+  assert.equal(p.settings.resultConfirm, false);
+  st.setConfig({ resultConfirm: true });
+  assert.equal(st.state.current.settings.resultConfirm, false);
+  const raw = JSON.parse(mem.getItem(STORAGE_KEY)); delete raw.config.resultConfirm;
+  const mem2 = memStorage(); mem2.setItem(STORAGE_KEY, JSON.stringify(raw));
+  assert.equal(createStore(mem2, { rng }).state.config.resultConfirm, true);
 });
 
 test('저장 키 이름이 럭키백 전용', () => {

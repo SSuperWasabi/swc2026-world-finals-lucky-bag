@@ -1,7 +1,7 @@
 /* SWC2026 World Finals Lucky Bag — Service Worker
    앱 자산을 미리 캐시해 첫 실행 뒤에는 인터넷 없이 돈다.
    ※ 앱을 고쳐 다시 배포할 때는 CACHE 버전과 index.html의 APP_VER를 함께 올린다. */
-const CACHE = 'swc2026-world-finals-lucky-bag-v1';
+const CACHE = 'swc2026-world-finals-lucky-bag-v22';
 const PREFIX = 'swc2026-world-finals-lucky-bag-';
 const ASSETS = [
   './',
@@ -10,16 +10,36 @@ const ASSETS = [
   './bag-engine.js',
   './bag-store.js',
   './reveal.js',
+  './transition.js',
+  './assets/main/main-intro.mp4',
+  './assets/main/main-loop.mp4',
+  './assets/main/select-loop.mp4',
+  './assets/main/draw-bg-loop.mp4',
+  './assets/main/emblem-loop.mp4',
+  './assets/com2us-store-h-white.png',
+  './assets/transition/transition-matte.mp4',
+  './assets/transition/transition-color.mp4',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './assets/com2us-store-lockup-white.svg',
   './assets/fonts/Pretendard-Bold.otf',
+  './assets/fonts/LINESeedSans-Bold.otf',
   './assets/fonts/Unbounded-Variable.ttf',
   './assets/lb/bg-streaks.jpg',
   './assets/lb/card-back.png',
   './assets/lb/card-front-a.png',
   './assets/lb/card-front-b.png',
   './assets/lb/card-front-c.png',
+  './assets/lb/pedestal.webp',
+  './assets/lb/grade-A.png',
+  './assets/lb/grade-B.png',
+  './assets/lb/grade-C.png',
+  './assets/lb/card-front-a-loop.mp4',
+  './assets/lb/card-front-a-poster.jpg',
+  './assets/lb/card-front-b-loop.mp4',
+  './assets/lb/card-front-b-poster.jpg',
+  './assets/lb/card-front-c-loop.mp4',
+  './assets/lb/card-front-c-poster.jpg',
   './assets/lb/sd-yeonhong.png',
   './assets/lb/sd-ragdoll.png',
   './assets/lb/sd-oracle.png',

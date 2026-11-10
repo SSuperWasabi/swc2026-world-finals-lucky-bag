@@ -9,7 +9,7 @@
   function defaultState() {
     return {
       version: 1,
-      config: { unit: 'batch', reveal: 'one', dupReduce: true, pin: '0000' },
+      config: { unit: 'batch', reveal: 'all', dupReduce: true, resultConfirm: true, pin: '0000' },
       stock: { ...DEFAULT_STOCK },
       initial: { ...DEFAULT_STOCK },
       log: [],
@@ -45,6 +45,7 @@
     if (cfg.unit !== 'single' && cfg.unit !== 'batch') cfg.unit = d.config.unit;
     if (cfg.reveal !== 'one' && cfg.reveal !== 'all') cfg.reveal = d.config.reveal;
     if (typeof cfg.dupReduce !== 'boolean') cfg.dupReduce = d.config.dupReduce;
+    if (typeof cfg.resultConfirm !== 'boolean') cfg.resultConfirm = d.config.resultConfirm;
     if (!/^\d{4,8}$/.test(String(cfg.pin))) cfg.pin = d.config.pin;
     return { ...d, ...s, config: cfg, current: s.current || null };
   }
@@ -79,7 +80,7 @@
       const { results, stock } = E().drawMany(state.stock, qty, { dupReduce: state.config.dupReduce }, rng);
       const next = clone(state);
       next.seq += 1;
-      const settings = { unit: state.config.unit, reveal: state.config.reveal, dupReduce: state.config.dupReduce };
+      const settings = { unit: state.config.unit, reveal: state.config.reveal, dupReduce: state.config.dupReduce, resultConfirm: state.config.resultConfirm !== false };
       const id = `p${now()}-${next.seq}`;
       const batches = E().splitBatches(qty, settings.unit);
       next.stock = stock;
