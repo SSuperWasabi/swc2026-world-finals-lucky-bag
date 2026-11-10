@@ -1,7 +1,7 @@
 /* SWC2026 World Finals Lucky Bag — Service Worker
    앱 자산을 미리 캐시해 첫 실행 뒤에는 인터넷 없이 돈다.
    ※ 앱을 고쳐 다시 배포할 때는 CACHE 버전과 index.html의 APP_VER를 함께 올린다. */
-const CACHE = 'swc2026-world-finals-lucky-bag-v28';
+const CACHE = 'swc2026-world-finals-lucky-bag-v29';
 const PREFIX = 'swc2026-world-finals-lucky-bag-';
 const ASSETS = [
   './',
@@ -16,6 +16,10 @@ const ASSETS = [
   './assets/main/select-loop.mp4',
   './assets/main/draw-bg-loop.mp4',
   './assets/main/emblem-loop.mp4',
+  './assets/main/main-intro-poster.jpg',
+  './assets/main/main-loop-poster.jpg',
+  './assets/main/select-loop-poster.jpg',
+  './assets/main/draw-bg-poster.jpg',
   './assets/com2us-store-h-white.png',
   './assets/transition/transition-matte.mp4',
   './assets/transition/transition-color.mp4',
@@ -75,12 +79,14 @@ self.addEventListener('fetch', (e) => {
     if (hit) {
       const range = e.request.headers.get('range');
       if (!range) return hit;
-      const bytes = await hit.arrayBuffer(), m = /^bytes=(\d*)-(\d*)$/.exec(range);
-      if (!m) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.byteLength}` } });
-      const start = m[1] ? Number(m[1]) : Math.max(0, bytes.byteLength - Number(m[2]));
-      const end = m[1] && m[2] ? Math.min(Number(m[2]), bytes.byteLength - 1) : bytes.byteLength - 1;
-      if (start > end || start >= bytes.byteLength) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${bytes.byteLength}` } });
-      return new Response(bytes.slice(start, end + 1), { status: 206, headers: { 'Content-Type': hit.headers.get('Content-Type') || 'video/mp4', 'Content-Range': `bytes ${start}-${end}/${bytes.byteLength}`, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
+      // 파일 전체를 메모리로 읽지 않고(blob) 필요한 구간만 잘라 준다 — iPad는 영상 하나에 구간 요청을 여러 번 보낸다
+      const blob = await hit.blob(), size = blob.size, m = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!m || (!m[1] && !m[2])) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+      const start = m[1] ? Number(m[1]) : Math.max(0, size - Number(m[2]));
+      const end = m[1] && m[2] ? Math.min(Number(m[2]), size - 1) : size - 1;
+      if (start > end || start >= size) return new Response(null, { status: 416, headers: { 'Content-Range': `bytes */${size}` } });
+      const type = hit.headers.get('Content-Type') || 'video/mp4';
+      return new Response(blob.slice(start, end + 1, type), { status: 206, headers: { 'Content-Type': type, 'Content-Range': `bytes ${start}-${end}/${size}`, 'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' } });
     }
     try {
       const res = await fetch(e.request);

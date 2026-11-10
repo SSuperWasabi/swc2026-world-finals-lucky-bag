@@ -2,7 +2,9 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<!-- 화면 폭을 무대 크기(2048)로 고정한다. iPad Pro 12.9형에서는 무대가 줄임 없이 실제 화소 크기로 그려져,
+     Safari가 층마다 4배 크기 그림을 잡지 않는다(v28까지: 2048 무대를 절반으로 줄여 보여 줘 메모리 초과로 앱이 꺼졌다). -->
+<meta name="viewport" content="width=2048, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -17,7 +19,7 @@
   @font-face{font-family:Seed;src:url(assets/fonts/LINESeedSans-Bold.otf);font-weight:700;font-display:block}
   :root{--A:#ff4fa3;--B:#a46bff;--C:#ffc443;--ink:#4b0fb8}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;height:100%;background:#0d0620;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  html,body{margin:0;height:100%;background:#0d0620;overflow:hidden;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-text-size-adjust:100%;text-size-adjust:100%}
   #stage{position:absolute;left:0;top:0;width:2048px;height:2732px;transform-origin:0 0;overflow:hidden;font-family:Pre,system-ui,sans-serif;color:#fff}
   /* ── 공통 liquid glass ── */
   .glass{position:relative;border-radius:64px;
@@ -76,11 +78,13 @@
   #idleCards .ring{animation:breathe 3.4s ease-in-out infinite alternate}
   @keyframes breathe{from{opacity:.55;transform:translateX(-50%) scaleX(.92)}to{opacity:1;transform:translateX(-50%) scaleX(1.06)}}
   /* 뒷면 광택: 카드 모양으로만 비치게 마스크 */
-  .back .shine{position:absolute;inset:0;pointer-events:none;-webkit-mask:url(assets/lb/card-back.png) center/100% 100%;mask:url(assets/lb/card-back.png) center/100% 100%;
-    background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.0) 40%,rgba(255,255,255,.55) 48%,rgba(255,240,255,.15) 54%,transparent 62%) no-repeat;background-size:300% 100%;background-position:120% 0;
+  /* 빛 띠는 작은 조각(1/4 크기)을 4배로 늘려 '위치 이동'으로만 움직인다 → 매 프레임 다시 그리지 않음(iPad 부하) */
+  .back .shine{position:absolute;inset:0;pointer-events:none;overflow:hidden;-webkit-mask:url(assets/lb/card-back.png) center/100% 100%;mask:url(assets/lb/card-back.png) center/100% 100%}
+  .back .shine::before{content:"";position:absolute;left:0;top:0;width:75%;height:25%;transform-origin:0 0;transform:translateX(-320%) scale(4);
+    background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.0) 40%,rgba(255,255,255,.55) 48%,rgba(255,240,255,.15) 54%,transparent 62%) no-repeat;
     animation:shine 4.2s ease-in-out infinite}
-  .s-l .back .shine{animation-delay:1.4s}.s-r .back .shine{animation-delay:2.8s}
-  @keyframes shine{0%,55%{background-position:120% 0}85%,100%{background-position:-20% 0}}
+  .s-l .back .shine::before{animation-delay:1.4s}.s-r .back .shine::before{animation-delay:2.8s}
+  @keyframes shine{0%,55%{transform:translateX(-320%) scale(4)}85%,100%{transform:translateX(53.33%) scale(4)}}
   .startpill{position:absolute;left:50%;top:2380px;transform:translateX(-50%);padding:34px 90px;border-radius:999px;font-family:Unb;font-weight:700;font-size:60px;letter-spacing:.08em;white-space:nowrap}
   .startpill{animation:pillPulse 2.2s ease-in-out infinite}
   @keyframes pillPulse{0%,100%{box-shadow:inset 0 3px 0 rgba(255,255,255,.55),0 0 0 0 rgba(220,190,255,.0),0 40px 100px rgba(25,0,70,.45)}50%{box-shadow:inset 0 3px 0 rgba(255,255,255,.55),0 0 0 24px rgba(220,190,255,.16),0 40px 100px rgba(25,0,70,.45)}}
@@ -162,7 +166,7 @@
     background:url(assets/lb/pedestal.webp) center/100% 100% no-repeat;opacity:.5;filter:brightness(.62) saturate(.75);transition:opacity .5s ease,filter .5s ease}
   /* 떠 있는 카드가 원판 위에 드리우는 그림자 + 은은한 빛 */
   .ring::before{content:"";position:absolute;left:22%;right:22%;top:20%;bottom:34%;border-radius:50%;background:radial-gradient(closest-side,rgba(8,0,24,.7),transparent 75%)}
-  .ring::after{content:"";position:absolute;left:20%;right:20%;top:10%;bottom:30%;border-radius:50%;mix-blend-mode:screen;
+  .ring::after{content:"";position:absolute;left:20%;right:20%;top:10%;bottom:30%;border-radius:50%;
     background:radial-gradient(closest-side,rgba(255,220,170,.45),rgba(190,120,255,.25) 55%,transparent 78%);opacity:.5;animation:pedBreath 3.4s ease-in-out infinite}
   @keyframes pedBreath{50%{opacity:.2}}
   .slot.revealing .ring{opacity:.8;filter:brightness(1) saturate(1)}
@@ -172,10 +176,15 @@
   .card{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
   .face{position:absolute;inset:0;border-radius:6%}
   .face img.frameimg{position:absolute;top:0;left:-1.9%;width:103.8%;height:100%;max-width:none}  /* 새 뒷면은 가로가 3.8% 넓은 비율 → 가운데 맞춤(변형 없이 위치로만) */
-  .back{filter:drop-shadow(0 0 30px rgba(255,200,110,.55))}
+  /* 카드 둘레 빛: 흐림 필터(drop-shadow) 대신 카드 뒤에 깔린 그림자 한 장으로 그린다.
+     필터는 카드 안 영상·광택이 움직일 때마다 다시 계산돼 iPad에서 뒤집기가 멈출 만큼 무거웠다(11-10 실기기). */
+  .back::before,.front::before,.back .pulse{content:"";position:absolute;inset:1% -1%;border-radius:calc(var(--cw)*.06);pointer-events:none}
+  .back::before{box-shadow:0 0 34px 6px rgba(255,200,110,.6)}
+  .front::before{inset:1% 0;box-shadow:0 0 38px 8px var(--acc)}
+  .back .pulse{opacity:0;box-shadow:0 0 60px 16px #ffe2a8}
   .back .emb{position:absolute;left:50%;top:44%;width:38%;transform:translate(-50%,-50%)}
   .back .lb{position:absolute;left:0;right:0;top:56%;text-align:center;font-family:Unb;font-weight:800;font-size:calc(var(--cw)*.062);letter-spacing:.14em;text-shadow:0 0 16px #c9a2ff}
-  .front{transform:rotateY(180deg);visibility:hidden;filter:drop-shadow(0 0 34px var(--acc))}
+  .front{transform:rotateY(180deg);visibility:hidden}
   /* 카드 앞면: 앞면 그림+캐릭터 루프 영상(카드 모양 마스크), 리본 글자·왼쪽 위 배지는 글자로 */
   .front .cf-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;-webkit-mask:url(assets/lb/card-front-a.png) center/100% 100%;mask:url(assets/lb/card-front-a.png) center/100% 100%}
   /* 실측(카드 800×1206 기준): 배지 방패 안쪽 면 x45~165 · y48~178(시각 중심 107,113) / 리본 가운데 면 x110~690 · y905~1028 */
@@ -183,27 +192,34 @@
   .front .cf-name{position:absolute;left:13.75%;right:13.75%;top:75%;height:10.2%;display:flex;align-items:center;justify-content:center;line-height:1;white-space:nowrap;font-family:Unb;font-weight:850;font-size:calc(var(--cw)*.066);letter-spacing:.04em;color:#fff;text-shadow:0 2px 6px rgba(40,0,90,.75)}
   .slot[data-type="C"] .front .cf-name,.slot[data-type="C"] .front .cf-badge{color:#4b1a9a;text-shadow:0 1px 0 #fff8}
   .slot[data-type="B"] .front .cf-name{color:#5a2a00;text-shadow:0 1px 0 #fff6}
-  .front .cf-foil{position:absolute;inset:0;pointer-events:none;opacity:0;mix-blend-mode:screen;-webkit-mask:url(assets/lb/card-front-a.png) center/100% 100%;mask:url(assets/lb/card-front-a.png) center/100% 100%;
-    background:linear-gradient(115deg,transparent 26%,rgba(255,80,190,.85) 36%,rgba(255,236,110,.9) 44%,rgba(90,255,200,.85) 52%,rgba(110,140,255,.9) 60%,transparent 72%);background-size:300% 100%;background-position:110% 0}
-  .slot.foil .cf-foil{animation:foilSweep 1.05s ease-in-out both}
-  @keyframes foilSweep{0%{opacity:0;background-position:110% 0}12%{opacity:1}88%{opacity:1}100%{opacity:0;background-position:-10% 0}}
-  /* 1 빌드업: 테두리 빛이 점점 강해짐 */
-  .slot.charging .back{animation:charge .7s ease-in forwards}
-  @keyframes charge{from{filter:drop-shadow(0 0 30px rgba(255,200,110,.55)) brightness(1)}to{filter:drop-shadow(0 0 24px #fff6dc) drop-shadow(0 0 70px #ffc95a) brightness(1.3)}}
+  .front .cf-foil{position:absolute;inset:0;pointer-events:none;opacity:0;overflow:hidden;mix-blend-mode:screen;-webkit-mask:url(assets/lb/card-front-a.png) center/100% 100%;mask:url(assets/lb/card-front-a.png) center/100% 100%}
+  /* 무지개 띠도 작은 조각을 4배로 늘려 위치 이동으로만 움직인다(다시 그리지 않음) */
+  .front .cf-foil::before{content:"";position:absolute;left:0;top:0;width:75%;height:25%;transform-origin:0 0;transform:translateX(-293.33%) scale(4);
+    background:linear-gradient(115deg,transparent 26%,rgba(255,80,190,.85) 36%,rgba(255,236,110,.9) 44%,rgba(90,255,200,.85) 52%,rgba(110,140,255,.9) 60%,transparent 72%)}
+  .slot.foil .cf-foil{animation:foilFade 1.05s ease-in-out both}
+  .slot.foil .cf-foil::before{animation:foilSweep 1.05s ease-in-out both}
+  @keyframes foilFade{0%{opacity:0}12%{opacity:1}88%{opacity:1}100%{opacity:0}}
+  @keyframes foilSweep{0%{transform:translateX(-293.33%) scale(4)}100%{transform:translateX(26.67%) scale(4)}}
+  /* 1 빌드업: 테두리 빛이 점점 강해짐(그림자 한 장의 투명도만 바꾼다) */
+  .slot.charging .back .pulse{box-shadow:0 0 24px 6px #fff6dc,0 0 70px 20px #ffc95a;animation:charge .7s ease-in forwards}
+  @keyframes charge{from{opacity:0}to{opacity:1}}
   /* 3 빛 터짐: 섬광 · 광선 · 바닥 고리 2겹 */
   .flash{position:absolute;inset:-3%;border-radius:8%;background:radial-gradient(closest-side,#fff 0 70%,#fff4d6 86%,rgba(255,240,200,0));opacity:0;pointer-events:none;transform:translateZ(-2px)}
   .slot.burst .flash{animation:flashOut .55s cubic-bezier(.3,0,.4,1) both}
   @keyframes flashOut{0%{opacity:1}100%{opacity:0}}
   .fx-sparks{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:40}
   /* 카드 뒤 큰 금빛 광선: 넓게 퍼졌다가 천천히 돌며 사라짐(두 겹이 반대로 돌아 일렁임) */
-  .godrays{position:absolute;pointer-events:none;background:center/100% 100% no-repeat;mix-blend-mode:screen;opacity:0;will-change:transform,opacity}
+  /* 광선 그림은 1/4 크기 조각(reveal.js)을 4배로 늘려 보여 준다 — 원래 흐릿한 빛이라 차이가 안 보이고, 메모리는 1/16.
+     겹침 합성(screen)은 뺐다: 무대 전체를 매 프레임 따로 합성하게 만들어 iPad에서 가장 무거운 순간이었다. */
+  .godrays{position:absolute;pointer-events:none;background:center/100% 100% no-repeat;opacity:0;will-change:transform,opacity}
   .godrays.r1{animation:godR1 2.8s cubic-bezier(.16,.8,.3,1) both}
   .godrays.r2{animation:godR2 2.8s cubic-bezier(.16,.8,.3,1) both}
-  @keyframes godR1{0%{opacity:0;transform:scale(.3) rotate(0deg)}7%{opacity:1}55%{opacity:1}100%{opacity:0;transform:scale(1.05) rotate(9deg)}}
-  @keyframes godR2{0%{opacity:0;transform:scale(.28) rotate(14deg) scaleX(-1)}9%{opacity:.9}55%{opacity:.8}100%{opacity:0;transform:scale(1) rotate(3deg) scaleX(-1)}}
-  /* 공개 중 조명: 배경을 어둡게 눌러 금빛 효과가 살아나게(레퍼런스의 어두운 무대) */
-  .dimmer{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .45s ease;
-    background:radial-gradient(ellipse 72% 42% at 50% 64%,rgba(24,6,52,.42),rgba(8,0,22,.88))}
+  @keyframes godR1{0%{opacity:0;transform:scale(1.2) rotate(0deg)}7%{opacity:1}55%{opacity:1}100%{opacity:0;transform:scale(4.2) rotate(9deg)}}
+  @keyframes godR2{0%{opacity:0;transform:scale(1.12) rotate(14deg) scaleX(-1)}9%{opacity:.9}55%{opacity:.8}100%{opacity:0;transform:scale(4) rotate(3deg) scaleX(-1)}}
+  /* 공개 중 조명: 배경을 어둡게 눌러 금빛 효과가 살아나게(레퍼런스의 어두운 무대). 1/8 크기 조각을 8배로 늘림(부드러운 그라데이션이라 같아 보임) */
+  /* 늘린 조각의 가장자리가 화면 안에 걸리지 않게 사방으로 64px 넉넉히 잡는다(빛 중심·크기는 전과 같은 자리) */
+  .dimmer{position:absolute;left:-64px;top:-64px;width:272px;height:358px;transform:scale(8);transform-origin:0 0;pointer-events:none;opacity:0;transition:opacity .45s ease;
+    background:radial-gradient(ellipse 67.77% 40.06% at 50% 63.29%,rgba(24,6,52,.42),rgba(8,0,22,.88))}
   .scr.spot .dimmer{opacity:1}
   /* 떠오르는 금가루(3·4번 배경 루프에 움직임) */
   .dust{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:3}
@@ -211,11 +227,16 @@
     background:radial-gradient(circle,#fff 0,#ffe7ad 32%,rgba(255,200,120,0) 70%);animation:dustUp var(--d) linear var(--t) infinite}
   @keyframes dustUp{0%{opacity:0;transform:translate(0,0)}18%{opacity:.95}80%{opacity:.6}100%{opacity:0;transform:translate(var(--dx),-900px)}}
   /* 밝은 삼각형 위를 주기적으로 지나가는 빛 */
-  .sheen{position:absolute;inset:0;pointer-events:none;background:linear-gradient(125deg,transparent 0 41%,rgba(160,100,255,.32) 45%,rgba(255,255,255,.95) 50%,rgba(160,100,255,.32) 55%,transparent 59% 100%);
-    background-size:260% 260%;background-position:100% 100%;animation:sheenGo 5.5s cubic-bezier(.45,0,.3,1) infinite}
-  .sheen.tl{clip-path:polygon(0 0,1060px 0,0 1060px)}
-  .sheen.br{clip-path:polygon(1362px 2732px,2048px 2732px,2048px 2362px);animation-delay:2.4s}
-  @keyframes sheenGo{0%{background-position:100% 100%}30%,100%{background-position:0 0}}
+  /* 삼각형 크기만 한 칸 안에서, 1/10 크기 빛 띠 조각을 10배로 늘려 위치 이동으로만 지나가게 한다.
+     (전에는 화면 전체 크기 층을 매 프레임 다시 그렸다. 빛 띠의 모양·경로·속도는 그대로) */
+  .sheen{position:absolute;left:var(--sx,0px);top:var(--sy,0px);width:var(--sw);height:var(--sh);overflow:hidden;pointer-events:none}
+  .sheen::before{content:"";position:absolute;left:calc(0px - var(--sx,0px));top:calc(0px - var(--sy,0px));width:533px;height:710px;transform-origin:0 0;transform:translate(-3277px,-4371px) scale(10);
+    background:linear-gradient(125deg,transparent 0 41%,rgba(160,100,255,.32) 45%,rgba(255,255,255,.95) 50%,rgba(160,100,255,.32) 55%,transparent 59% 100%);
+    animation:sheenGo 5.5s cubic-bezier(.45,0,.3,1) infinite}
+  .sheen.tl{--sw:1060px;--sh:1060px;clip-path:polygon(0 0,100% 0,0 100%)}
+  .sheen.br{--sx:1362px;--sy:2362px;--sw:686px;--sh:370px;clip-path:polygon(0 100%,100% 100%,100% 0)}
+  .sheen.br::before{animation-delay:2.4s}
+  @keyframes sheenGo{0%{transform:translate(-3277px,-4371px) scale(10)}30%,100%{transform:translate(0px,0px) scale(10)}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
   #slots .slot:not(.revealing):not(.flipped) .card{animation:cardBob 3s ease-in-out infinite alternate}
   #slots .s-l .card,#slots .s-2l .card{animation-delay:-1s}#slots .s-r .card,#slots .s-2r .card{animation-delay:-2s}
@@ -228,8 +249,8 @@
   .flipped .front{visibility:visible}
   .flipped .back{visibility:hidden}
   .slot.tappable{cursor:pointer}
-  .slot.tappable .back{animation:pulse 1.6s ease-in-out infinite}
-  @keyframes pulse{50%{filter:drop-shadow(0 0 60px #ffe2a8)}}
+  .slot.tappable .back .pulse{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{50%{opacity:1}}
   .hint{position:absolute;left:0;right:0;top:2172px;text-align:center;font-family:Unb;font-weight:700;font-size:64px;letter-spacing:.06em;text-shadow:0 0 20px #c9a2ff}
   .hint.blink{animation:blink 1.8s ease-in-out infinite}
   @keyframes blink{50%{opacity:.35}}
@@ -244,9 +265,16 @@
   .btn.pri{background:#fff;color:var(--ink);border-color:#fff}
   .btn:disabled,.startbtn:disabled{opacity:.35}
   /* ── 4번 화면 틀(시안 2 실측, 1500×2000 → 2048×2732): 흰 영역·연보라 삼각형·좌하단 밝은 삼각형·우상단 진한 남보라 ── */
-  .d-top{position:absolute;inset:0;pointer-events:none;background:linear-gradient(180deg,#400695 0%,#400695 26%,rgba(64,6,149,.55) 36%,rgba(64,6,149,0) 47%)}
-  .d-frame{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-  /* 엠블럼 루프(OAP WF LOGO 원본, 흰 바탕 영상) — 흰 영역 위에서 곱하기 합성이라 보라 심볼만 보임 */
+  /* 위쪽 진한 보라 그라데이션(화면 위 47%): 세로로만 변하는 색이라 작은 조각(16×321)을 늘려 그린다 */
+  .d-top{position:absolute;left:-256px;top:0;width:20px;height:321px;transform:scale(128,4);transform-origin:0 0;pointer-events:none;background:linear-gradient(180deg,#400695 0%,#400695 55.3%,rgba(64,6,149,.55) 76.6%,rgba(64,6,149,0) 100%)}
+  /* 틀 그림은 실제로 그려지는 두 구역(좌상단 삼각형, 좌하단 삼각형) 크기만큼만 잡는다 */
+  .d-frame{position:absolute;pointer-events:none}
+  .d-f1{left:0;top:0;width:1072px;height:1165px}
+  .d-f2{left:0;top:2227px;width:464px;height:505px}
+  /* 엠블럼 루프(OAP WF LOGO 원본, 흰 바탕 영상) — 흰 영역 위에서 곱하기 합성이라 보라 심볼만 보임.
+     곱하기 합성이 이 작은 칸 안에서만 일어나게 가둔다(안 가두면 무대 전체가 매 프레임 따로 합성됨).
+     칸 바탕은 뒤의 흰 삼각형 그라데이션과 같은 색(같은 각도·같은 위치)이라 이음새가 안 보인다. */
+  .d-embox{position:absolute;left:0;top:0;width:386px;height:402px;isolation:isolate;pointer-events:none;background:linear-gradient(132.62deg,#e6dffc 0,#fff 347px)}
   .d-emblem{position:absolute;left:14px;top:22px;width:358px;height:358px;mix-blend-mode:multiply;pointer-events:none}
   .d-swc{position:absolute;left:85px;top:352px;font-family:Unb;font-weight:700;font-size:57px;line-height:1.06;letter-spacing:-.005em;color:#8a35ea;white-space:nowrap}
   .d-title{position:absolute;right:83px;top:430px;margin:0;text-align:right;font-family:Unb;font-weight:700;font-size:120px;line-height:1.06;letter-spacing:-.01em;color:#fff;white-space:nowrap;
@@ -254,13 +282,13 @@
   .d-title.swap{opacity:0}
   .d-title.big{font-size:165px;top:405px}
   .d-store{position:absolute;right:83px;top:104px;width:520px;height:auto;pointer-events:none}
-  #scr-draw .sheen.tl{clip-path:polygon(0 0,1072px 0,0 1165px)}
-  /* 4번 화면 버튼(TAP TO OPEN · 지급 완료 · 다음 묶음): 메인 TOUCH TO START와 같은 유리 — AE 수치 그대로
-     860×150 알약 · 흰색 18% 채움 · 흰색 3px 70% 테두리 · 뒤 배경 흐림 22px · LINE Seed Sans Bold 80px 흰색 */
+  #scr-draw .sheen.tl{--sw:1072px;--sh:1165px}
+  /* 4번 화면 버튼(TAP TO OPEN · 지급 완료 · 다음 묶음): 메인 TOUCH TO START와 같은 유리 느낌
+     860×150 알약 · 흰색 반투명 채움 · 흰색 3px 70% 테두리 · LINE Seed Sans Bold 80px 흰색
+     ※ 뒤 배경 흐림(backdrop-filter)은 뺐다: 움직이는 영상 위에서 매 프레임 흐림을 다시 계산해 iPad에 무겁다 */
   #scr-draw .staffbar{top:2135px;bottom:auto;left:0;right:0}
   #scr-draw .btn{width:860px;height:150px;padding:0;border-radius:75px;font-family:Seed,Pre,sans-serif;font-weight:700;font-size:80px;line-height:1;color:#fff;
-    background:rgba(255,255,255,.18);border:3px solid rgba(255,255,255,.7);
-    -webkit-backdrop-filter:blur(22px);backdrop-filter:blur(22px);transition:transform .15s ease}
+    background:linear-gradient(180deg,rgba(255,255,255,.30),rgba(255,255,255,.17));border:3px solid rgba(255,255,255,.7);transition:transform .15s ease}
   #scr-draw .btn:active{transform:scale(.97)}
   #scr-draw .btn.pri{color:#fff}
   button{font:inherit;cursor:pointer}
@@ -341,13 +369,14 @@
 
   <!-- 대기 -->
   <section class="scr" id="scr-idle">
-    <video id="mvIntro" class="mainvid" src="assets/main/main-intro.mp4" muted playsinline preload="auto" disablepictureinpicture></video>
-    <video id="mvLoop" class="mainvid" src="assets/main/main-loop.mp4" muted playsinline loop preload="auto" disablepictureinpicture></video>
+    <!-- 영상 주소는 data-src에 두고, 그 화면에 들어올 때만 올린다(go → useVideos). 올라오기 전에는 poster(첫 장면)가 보인다 -->
+    <video id="mvIntro" class="mainvid" data-src="assets/main/main-intro.mp4" poster="assets/main/main-intro-poster.jpg" muted playsinline preload="auto" disablepictureinpicture></video>
+    <video id="mvLoop" class="mainvid" data-src="assets/main/main-loop.mp4" poster="assets/main/main-loop-poster.jpg" muted playsinline loop preload="auto" disablepictureinpicture></video>
   </section>
 
   <!-- 직원: 수량 입력 -->
   <section class="scr" id="scr-staff">
-    <video id="selLoop" class="mainvid on" src="assets/main/select-loop.mp4" muted playsinline loop preload="auto" disablepictureinpicture></video>
+    <video id="selLoop" class="mainvid on" data-src="assets/main/select-loop.mp4" poster="assets/main/select-loop-poster.jpg" muted playsinline loop preload="auto" disablepictureinpicture></video>
     <div class="sheen tl"></div><div class="sheen br"></div><div class="dust"></div>
     <!-- OAP 18_Result Bo5의 흰 판(WHITE BOX)·그라데이션 띠(NAME VAR)·세트 상자(SET BOX) 스타일 -->
     <div class="rb-panel">
@@ -363,15 +392,17 @@
 
   <!-- 뽑기 -->
   <section class="scr" id="scr-draw">
-    <video id="drawLoop" class="mainvid on" src="assets/main/draw-bg-loop.mp4" muted playsinline loop preload="none" disablepictureinpicture></video>
+    <video id="drawLoop" class="mainvid on" data-src="assets/main/draw-bg-loop.mp4" poster="assets/main/draw-bg-poster.jpg" muted playsinline loop preload="auto" disablepictureinpicture></video>
     <div class="d-top"></div>
-    <svg class="d-frame" viewBox="0 0 2048 2732" aria-hidden="true">
-      <defs><linearGradient id="dWhite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6dffc"/><stop offset=".22" stop-color="#ffffff"/></linearGradient></defs>
+    <svg class="d-frame d-f2" viewBox="0 2227 464 505" aria-hidden="true">
       <polygon points="0,2227 464,2732 0,2732" fill="#ffffff" fill-opacity=".13"/>
+    </svg>
+    <svg class="d-frame d-f1" viewBox="0 0 1072 1165" aria-hidden="true">
+      <defs><linearGradient id="dWhite" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6dffc"/><stop offset=".22" stop-color="#ffffff"/></linearGradient></defs>
       <polygon points="0,0 1072,0 0,1165" fill="url(#dWhite)"/>
       <polygon points="0,672 236,908 0,1165" fill="#dab6fb"/>
     </svg>
-    <video id="drawEmblem" class="d-emblem" src="assets/main/emblem-loop.mp4" muted playsinline loop preload="none" disablepictureinpicture></video>
+    <div class="d-embox"><video id="drawEmblem" class="d-emblem" data-src="assets/main/emblem-loop.mp4" muted playsinline loop preload="auto" disablepictureinpicture></video></div>
     <div class="d-swc">SWC2026<br>WORLD FINALS</div>
     <img class="d-store" src="assets/com2us-store-h-white.png" alt="">
     <div class="sheen tl"></div><div class="dimmer"></div>
@@ -417,7 +448,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v28'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v29'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 // 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
@@ -451,6 +482,22 @@ function fit() {
   stage.style.transform = `translate(${(innerWidth - 2048 * s) / 2}px,${(innerHeight - 2732 * s) / 2}px) scale(${s})`;
 }
 addEventListener('resize', fit); fit();
+// iPad는 처음 뜰 때·회전 직후 화면 크기를 늦게 알려 주는 일이 있어 한 번 더 맞춘다
+addEventListener('orientationchange', () => setTimeout(fit, 300));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
+setTimeout(fit, 400);
+
+/* ── 영상은 지금 화면에 필요한 것만 메모리에 올린다 ──
+   iPad는 올려 둔 영상마다 해독기와 화면 몇 장 분량의 메모리를 잡는다. v28까지는 모든 화면의 영상을 한꺼번에 올려 둬 메모리 한도를 넘겼다.
+   화면에 들어올 때 그 화면 영상을 올리고, 나갈 때 내린다. 3번(수량 선택)에서는 바로 다음인 4번 영상까지 미리 올려 둔다. */
+const SCREEN_VIDEOS = { 'scr-idle': ['mvIntro', 'mvLoop'], 'scr-staff': ['selLoop', 'drawLoop', 'drawEmblem'], 'scr-draw': ['drawLoop', 'drawEmblem'], 'scr-admin': [] };
+const ALL_VIDEOS = ['mvIntro', 'mvLoop', 'selLoop', 'drawLoop', 'drawEmblem'];
+function loadVideo(v) { if (v && !v.getAttribute('src')) { v.src = v.dataset.src; v.load(); } }
+function unloadVideo(v) { if (!v) return; try { v.pause(); if (v.getAttribute('src')) { v.removeAttribute('src'); v.load(); } } catch (e) { } }
+function useVideos(id) { const need = SCREEN_VIDEOS[id] || []; ALL_VIDEOS.forEach((n) => (need.includes(n) ? loadVideo($(n)) : unloadVideo($(n)))); }
+function prepVideos(id) { (SCREEN_VIDEOS[id] || []).forEach((n) => loadVideo($(n))); }   // 다음 화면 영상을 전환이 시작될 때 미리 올림
+/* 카드 앞면 영상: 요소를 지우기만 하면 iPad가 해독기를 한동안 붙잡고 있어서, 지우기 전에 직접 내려 준다 */
+function freeVideos(root) { root.querySelectorAll('video').forEach(unloadVideo); }
 
 /* ── 공통 ── */
 /* 금가루: 화면마다 26알, 위치·크기·속도 제각각 */
@@ -463,15 +510,13 @@ document.querySelectorAll('.dust').forEach((d) => {
 });
 function go(id) {
   guard();
-  if (id !== 'scr-draw') $('scr-draw').classList.remove('spot');
+  if (id !== 'scr-draw') { $('scr-draw').classList.remove('spot'); freeVideos($('slots')); }
   // 1번·3번은 AE 영상이 배경·로고·타이틀을 그린다 → 공통 배경 숨김
   stage.classList.toggle('vidbg', id === 'scr-idle' || id === 'scr-staff' || id === 'scr-draw');
   if (id !== 'scr-idle' && typeof stopMain === 'function') stopMain();
-  const sl = document.getElementById('selLoop'); if (sl) { if (id === 'scr-staff') sl.play().catch(() => {}); else sl.pause(); }
-  // 4번 화면 영상 2개는 첫 화면에서 미리 받지 않는다(동시 연결 6개 한도) → 수량 선택 화면에 들어올 때 미리 받아 둠
-  ['drawLoop', 'drawEmblem'].forEach((v) => { const dl = document.getElementById(v); if (!dl) return;
-    if (id === 'scr-staff' && dl.preload !== 'auto') { dl.preload = 'auto'; dl.load(); }
-    if (id === 'scr-draw') dl.play().catch(() => {}); else dl.pause(); });
+  useVideos(id);   // 이 화면 영상만 올리고 나머지는 내린다
+  if (id === 'scr-staff') $('selLoop').play().catch(() => {});
+  ['drawLoop', 'drawEmblem'].forEach((v) => { const dl = $(v); if (id === 'scr-draw') dl.play().catch(() => {}); else dl.pause(); });
   document.querySelectorAll('.scr').forEach((s) => s.classList.toggle('on', s.id === id));
   stage.classList.toggle('notitle', id === 'scr-admin');
 }
@@ -506,7 +551,7 @@ function renderSum(c) {
 }
 function slotHTML(cls) {
   return `<div class="slot ${cls}"><div class="ring"></div><div class="card">` +
-    `<div class="face back"><img class="frameimg" src="assets/lb/card-back.png" alt=""><div class="shine"></div></div>` +
+    `<div class="face back"><i class="pulse"></i><img class="frameimg" src="assets/lb/card-back.png" alt=""><div class="shine"></div></div>` +
     `<div class="face front"></div><div class="flash"></div></div></div>`;
 }
 const POS = { 1: ['s-m'], 2: ['s-2l', 's-2r'], 3: ['s-l', 's-m', 's-r'] };
@@ -526,6 +571,7 @@ function playMain() {
   mvIntro.play().catch(() => startLoop());
 }
 function startLoop() {
+  if (!$('scr-idle').classList.contains('on')) return;   // 대기 화면을 떠난 뒤(영상을 내린 뒤)에는 아무것도 하지 않는다
   try { mvLoop.currentTime = 0; } catch (e) { }
   mvLoop.classList.add('on');
   mvLoop.play().catch(() => { });
@@ -554,6 +600,7 @@ document.addEventListener('visibilitychange', () => {
   let last = 0;
   function tick(t) {
     requestAnimationFrame(tick);
+    if (stage.classList.contains('vidbg')) return;   // 영상 배경 화면(1·3·4번)에서는 이 반짝이가 안 보이므로 그리지 않는다
     if (t - last < 33) return; last = t;
     cx.clearRect(0, 0, 1024, 1366);
     for (const p of P) {
@@ -567,7 +614,7 @@ document.addEventListener('visibilitychange', () => {
   requestAnimationFrame(tick);
 })();
 
-$('scr-idle').addEventListener('click', () => { if (!busy && !screenTransition.busy) withTransition(showStaff); });
+$('scr-idle').addEventListener('click', () => { if (!busy && !screenTransition.busy) { prepVideos('scr-staff'); withTransition(showStaff); } });
 
 /* ── 관리자 진입: 오른쪽 위 3초 안에 5번 ── */
 let taps = [];
@@ -639,6 +686,7 @@ function renderDraw(fresh) {
   const solo = c.settings.unit === 'single';
   const cls = solo ? ['s-solo'] : POS[n];
   pending = []; runId++;
+  freeVideos($('slots'));   // 앞 묶음 카드 영상을 내린 뒤 새 카드로 바꾼다
   $('slots').innerHTML = cls.map(slotHTML).join('');
   const slots = slotEls();
   slots.forEach((s, i) => {
@@ -883,7 +931,8 @@ function paneBackup() {
     `<div class="row"><div>백업 내보내기<em>설정·재고·기록 전체를 파일 1개로</em></div><button class="act" id="bkOut">내보내기</button></div>` +
     `<div class="row"><div>백업 가져오기<em>현재 데이터를 모두 덮어써요</em></div><label class="act line">파일 선택<input type="file" id="bkIn" accept=".json,application/json" hidden></label></div>` +
     `<div class="row"><div>전체 초기화<em>재고를 A·B·C 각 100으로, 기록을 모두 지움</em></div><button class="act danger" id="bkReset">초기화</button></div>` +
-    `<div class="ver">앱 버전 <b>${APP_VER}</b></div>`;
+    // 화면 크기: iPad Pro 12.9형이면 2048×2732로 나와야 한다(1024×1366이면 화면 폭 고정이 안 먹은 것 → 메모리 4배)
+    `<div class="ver">앱 버전 <b>${APP_VER}</b> · 화면 ${innerWidth}×${innerHeight} · 배율 ${devicePixelRatio}</div>`;
   $('bkOut').onclick = () => saveFile(`luckybag-backup-${stamp()}.json`, store.exportBackup(), 'application/json');
   $('bkIn').onchange = async (ev) => {
     const f = ev.target.files[0]; if (!f) return;

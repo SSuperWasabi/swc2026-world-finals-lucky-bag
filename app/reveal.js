@@ -215,7 +215,8 @@
      카드 '뒤'에 깔려야 하므로 카드 목록 바로 앞의 전용 칸(.rays-layer)에 넣는다. */
   let raysURL = null;
   function raysCanvas() {
-    const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); const m = S / 2;
+    // 화면에는 1/4 크기 조각으로 올려 4배로 늘려 쓰므로 512면 충분
+    const S = 512, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); const m = S / 2;
     g.globalCompositeOperation = 'lighter';
     const n = 13;
     for (let i = 0; i < n; i++) {
@@ -247,7 +248,9 @@
     // 카드 목록 바로 앞에 전용 칸을 두고 거기에 넣는다(화면에서는 여전히 카드 뒤에 깔림).
     let host = slots.previousElementSibling;
     if (!host || !host.classList.contains('rays-layer')) { host = document.createElement('div'); host.className = 'rays-layer'; slots.parentNode.insertBefore(host, slots); }
-    const w = slot.offsetWidth * 3.6, x = slot.offsetLeft + slot.offsetWidth / 2, y = slot.offsetTop + slot.offsetHeight * 0.48;
+    // 화면에 보이는 크기는 카드 폭의 3.6배(약 2000px)지만, 조각은 그 1/4 크기로 만들고 CSS(godR1·godR2)가 4배로 늘려 보여 준다.
+    // 큰 조각 2장을 그대로 올리면 iPad에서 카드 한 장에 100MB 넘게 잡혀 빛이 터지는 순간 앱이 꺼졌다(11-10 실기기).
+    const w = slot.offsetWidth * 3.6 / 4, x = slot.offsetLeft + slot.offsetWidth / 2, y = slot.offsetTop + slot.offsetHeight * 0.48;
     const url = raysImage();
     [['r1', 2800], ['r2', 2800]].forEach(([k, ms]) => {
       const d = document.createElement('div'); d.className = `godrays ${k}`;
@@ -324,13 +327,8 @@
       setTimeout(() => slot.classList.remove('burst'), 900);
     };
     setTimeout(burstNow, T.turn + T.hang + T.snap * BURST_AT);
-    // 넘어가는 동안 앞면에 금빛 테두리 + 약한 번짐(레퍼런스의 움직임 번짐). 끝 값은 평소 그림자와 같게 맞춰 끝날 때 튀지 않는다
-    setTimeout(() => {
-      if (slot._stop) return; const front = slot.querySelector('.face.front'); if (!front || !front.animate) return;
-      const acc = getComputedStyle(slot).getPropertyValue('--acc').trim() || '#c9a2ff';
-      try { front.animate([{ filter: 'brightness(1.5) drop-shadow(0 0 26px #ffd682) blur(4px)' }, { filter: `brightness(1) drop-shadow(0 0 34px ${acc}) blur(0px)` }],
-        { duration: T.snap + 110, easing: 'ease-out' }); } catch (e) { }
-    }, T.turn + T.hang);
+    // (넘어가는 0.2초 동안 앞면에 걸던 흐림·그림자 필터는 뺐다 — 영상이 든 앞면 전체를 매 프레임 흐리게 다시 그려, 가장 바쁜 순간에 iPad를 멈추게 했다.
+    //  이 구간은 섬광이 카드를 덮고 있어 눈에 보이는 차이는 거의 없다)
     await settle(card.animate([
       { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(0deg) scale(1.03)', easing: 'cubic-bezier(.32,0,.67,1)' },
       { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(86deg) scale(1.03)', offset: T.turn / total, easing: 'linear' },
