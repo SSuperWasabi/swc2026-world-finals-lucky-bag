@@ -1,7 +1,7 @@
 /* SWC2026 World Finals Lucky Bag — Service Worker
    앱 자산을 미리 캐시해 첫 실행 뒤에는 인터넷 없이 돈다.
    ※ 앱을 고쳐 다시 배포할 때는 CACHE 버전과 index.html의 APP_VER를 함께 올린다. */
-const CACHE = 'swc2026-world-finals-lucky-bag-v24';
+const CACHE = 'swc2026-world-finals-lucky-bag-v27';
 const PREFIX = 'swc2026-world-finals-lucky-bag-';
 const ASSETS = [
   './',
@@ -48,6 +48,8 @@ const ASSETS = [
   './assets/lb/emblem-x-white.png',
 ];
 
+const DEV_HOST = ['localhost', '127.0.0.1', '[::1]'].includes(self.location.hostname);
+
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(ASSETS.map((url) => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
@@ -64,6 +66,11 @@ self.addEventListener('fetch', (e) => {
   if (new URL(e.request.url).origin !== self.location.origin) return;
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
+    // 개발용 PC(localhost)에서는 항상 최신 파일을 먼저 받는다(고치는 도중의 예전 화면이 캐시에 남아 섞여 보이지 않게).
+    // 서버에 못 닿으면 아래 캐시로 넘어가므로 오프라인 동작은 그대로다. 실제 배포 주소(iPad)는 캐시 우선.
+    if (DEV_HOST) {
+      try { const fresh = await fetch(e.request, { cache: 'no-store' }); if (fresh.status === 200 && fresh.type === 'basic') e.waitUntil(cache.put(e.request, fresh.clone()).catch(() => {})); if (fresh.ok || fresh.status === 206) return fresh; } catch (err) { /* 오프라인 → 캐시 */ }
+    }
     const hit = await cache.match(e.request, { ignoreSearch: e.request.mode === 'navigate' });
     if (hit) {
       const range = e.request.headers.get('range');

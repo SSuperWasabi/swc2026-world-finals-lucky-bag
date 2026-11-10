@@ -212,7 +212,7 @@
 
   /* ── 카드 뒤에서 퍼지는 큰 금빛 광선(레퍼런스 STEP 3 LIGHT BURST) ──
      부드러운 넓은 빛줄기 14~16가닥 + 가운데 안개빛. 한 번 그려 이미지로 만들어 두고 매번 재사용.
-     카드 '뒤'에 깔려야 하므로 #slots 맨 앞(모든 카드보다 뒤)에 넣는다. */
+     카드 '뒤'에 깔려야 하므로 카드 목록 바로 앞의 전용 칸(.rays-layer)에 넣는다. */
   let raysURL = null;
   function raysCanvas() {
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); const m = S / 2;
@@ -242,13 +242,17 @@
   setTimeout(prepRays, 1200);
   function raysImage() { if (!raysURL) raysURL = raysCanvas().toDataURL(); return raysURL; }
   function godRays(slot) {
-    const host = slot.parentNode; if (!host) return;
+    const slots = slot.parentNode; if (!slots || !slots.parentNode) return;
+    // 광선은 카드 목록(#slots) '안'에 넣지 않는다 — 안에 넣으면 카드 순번이 밀려 엉뚱한 카드가 뒤집힌다(11-10 버그).
+    // 카드 목록 바로 앞에 전용 칸을 두고 거기에 넣는다(화면에서는 여전히 카드 뒤에 깔림).
+    let host = slots.previousElementSibling;
+    if (!host || !host.classList.contains('rays-layer')) { host = document.createElement('div'); host.className = 'rays-layer'; slots.parentNode.insertBefore(host, slots); }
     const w = slot.offsetWidth * 3.6, x = slot.offsetLeft + slot.offsetWidth / 2, y = slot.offsetTop + slot.offsetHeight * 0.48;
     const url = raysImage();
     [['r1', 2800], ['r2', 2800]].forEach(([k, ms]) => {
       const d = document.createElement('div'); d.className = `godrays ${k}`;
       d.style.cssText = `left:${x - w / 2}px;top:${y - w / 2}px;width:${w}px;height:${w}px;background-image:url(${url})`;
-      host.insertBefore(d, host.firstChild);
+      host.appendChild(d);
       setTimeout(() => d.remove(), ms);
     });
   }
@@ -282,7 +286,7 @@
   const T = { charge: 700, turn: 190, hang: 300, snap: 70 };   // 빛기둥 유지 0.30초(요청으로 레퍼런스 0.47초보다 짧게)
   async function flip(slot, type, opts) {
     const delay = (opts && opts.delay) || 0;
-    slot._stop = false;
+    slot._stop = false; slot._bursted = false;
     const vid = fillFront(slot, type);
     const card = slot.querySelector('.card');
     if (reduced()) { slot.classList.add('flipped'); playVid(vid); return; }
@@ -309,7 +313,7 @@
     // ③ 빛 터짐: 휙 넘어가는 마지막 순간에 맞춰 터뜨림(다 넘어간 뒤 기다리면 맨 앞면이 잠깐 보임)
     let burstDone = false;
     const burstNow = () => {
-      if (burstDone || slot._stop) return; burstDone = true;
+      if (burstDone || slot._stop) return; burstDone = true; slot._bursted = true;   // 이 카드는 빛이 이미 터짐
       slot.classList.remove('edge');
       playVid(vid);
       godRays(slot);
@@ -350,11 +354,16 @@
     const v = fillFront(slot, type); slot.classList.add('flipped'); playVid(v);
   }
 
-  /* 다시 눌러 바로 완료: 남은 연출을 건너뛰고 앞면 + 짧은 빛 터짐 + '쾅' */
+  /* 다시 눌러 바로 완료: 남은 연출을 건너뛰고 앞면으로.
+     - 빛이 아직 안 터진 카드: 짧은 빛 터짐 + '쾅'과 함께 완료
+     - 빛이 이미 터진 카드(마무리 광택 구간): 다시 터뜨리지 않고 조용히 끝낸다. 진행 중이던 빛·소리는 끊지 않고 그대로 사라지게 둔다 */
   function finish(slot, type) {
     const done = slot.classList.contains('flipped') && !slot.classList.contains('revealing');
+    const bursted = !!slot._bursted;
+    if (bursted) fxs.forEach((f) => { if (f.slot === slot) f.slot = null; });   // show()가 세우는 멈춤 표시에 걸려 빛이 뚝 끊기지 않게
     show(slot, type);
-    if (done || reduced()) return;
+    if (done || bursted || reduced()) return;
+    slot._bursted = true;
     SFX.boomNow(slot);
     const R = rectOf(slot); godRays(slot);
     slot.classList.add('burst'); setTimeout(() => slot.classList.remove('burst'), 900);

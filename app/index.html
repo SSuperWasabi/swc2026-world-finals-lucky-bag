@@ -152,7 +152,9 @@
   /* 카드 */
   .slot{position:absolute;width:560px;height:840px;perspective:2400px;--cw:560px;--acc:#c9a2ff}
   /* 4번 화면 세로 배치: 스토어 로고 104~167(우상단) · 타이틀 430~685(공개 후 405~755) · 카드 930~1860 · 바닥 소환진 ~2090 · 버튼 2135~2285 · 당첨 수량 2335~2575 */
-  .s-l{left:164px;top:1020px}.s-m{left:744px;top:930px}.s-r{left:1324px;top:1020px}
+  /* 가로 간격(iPad Pro 12.9형: 1mm ≈ 9.5px). 3장: 카드 사이 60px(약 6mm, 전보다 4mm 넓힘) / 2장: 가운데로 모아 사이 140px */
+  .s-l{left:124px;top:1020px}.s-m{left:744px;top:930px}.s-r{left:1364px;top:1020px}
+  .s-2l{left:394px;top:975px}.s-2r{left:1094px;top:975px}
   .s-solo{left:714px;top:915px;width:620px;height:930px;--cw:620px}
   /* 바닥 소환진: 카드 아래로 조금 띄워(카드가 그 위에 떠서 도는 연출) 어둡고 희미하게 — 주인공은 카드.
      원판 높이 = 카드 폭의 0.364배, 카드 밑에서 0.045배(약 25px) 띄움 */
@@ -166,7 +168,7 @@
   .slot.revealing .ring{opacity:.8;filter:brightness(1) saturate(1)}
   .slot.revealing .ring::after{opacity:1;animation-duration:.9s}
   /* 옆 카드가 가운데 받침대보다 앞에 오도록(받침대 끝이 옆 카드 모서리를 덮지 않게) */
-  .s-l,.s-r{z-index:2}.s-m{z-index:1}
+  .s-l,.s-r,.s-2l,.s-2r{z-index:2}.s-m{z-index:1}
   .card{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
   .face{position:absolute;inset:0;border-radius:6%}
   .face img.frameimg{position:absolute;top:0;left:-1.9%;width:103.8%;height:100%;max-width:none}  /* 새 뒷면은 가로가 3.8% 넓은 비율 → 가운데 맞춤(변형 없이 위치로만) */
@@ -216,7 +218,7 @@
   @keyframes sheenGo{0%{background-position:100% 100%}30%,100%{background-position:0 0}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
   #slots .slot:not(.revealing):not(.flipped) .card{animation:cardBob 3s ease-in-out infinite alternate}
-  #slots .s-l .card{animation-delay:-1s}#slots .s-r .card{animation-delay:-2s}
+  #slots .s-l .card,#slots .s-2l .card{animation-delay:-1s}#slots .s-r .card,#slots .s-2r .card{animation-delay:-2s}
   @keyframes cardBob{from{transform:translateY(0)}to{transform:translateY(-22px)}}
   .front .win{position:absolute;left:11%;right:11%;top:16%;height:57%;clip-path:polygon(0 4%,40% 0,50% -10%,60% 0,100% 4%,100% 62%,50% 100%,0 62%);display:flex;align-items:center;justify-content:center}
   .front .win img{width:112%;height:auto;max-height:118%;object-fit:contain}
@@ -415,7 +417,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v24'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v27'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 // 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
@@ -507,7 +509,7 @@ function slotHTML(cls) {
     `<div class="face back"><img class="frameimg" src="assets/lb/card-back.png" alt=""><div class="shine"></div></div>` +
     `<div class="face front"></div><div class="flash"></div></div></div>`;
 }
-const POS = { 1: ['s-m'], 2: ['s-l', 's-r'], 3: ['s-l', 's-m', 's-r'] };
+const POS = { 1: ['s-m'], 2: ['s-2l', 's-2r'], 3: ['s-l', 's-m', 's-r'] };
 
 /* ── 대기 ── */
 /* ── 화면 전환 영상: 화면이 완전히 가려진 순간 화면을 바꾸고, 걷힐 때 다음 화면 모션을 시작 ── */
@@ -627,6 +629,8 @@ function batchInfo(c) {
   const n = c.batches[c.batchIndex];
   return { start, n, types: c.results.slice(start, start + n) };
 }
+/* 카드 목록: 반드시 .slot만 센다(다른 요소가 섞여도 순번이 밀리지 않게) */
+const slotEls = () => [...$('slots').children].filter((el) => el.classList.contains('slot'));
 function renderDraw(fresh) {
   const c = store.state.current;
   if (!c) return showIdle();
@@ -636,7 +640,7 @@ function renderDraw(fresh) {
   const cls = solo ? ['s-solo'] : POS[n];
   pending = []; runId++;
   $('slots').innerHTML = cls.map(slotHTML).join('');
-  const slots = [...$('slots').children];
+  const slots = slotEls();
   slots.forEach((s, i) => {
     if (c.revealed.includes(i)) Reveal.show(s, types[i]);
     s.addEventListener('click', () => tapCard(i));
@@ -665,7 +669,7 @@ function updateDraw() {
   const solo = c.settings.unit === 'single';
   const allMode = !solo && c.settings.reveal === 'all';
   const doneBatch = c.revealed.length >= n;
-  const slots = [...$('slots').children];
+  const slots = slotEls();
   slots.forEach((s, i) => s.classList.toggle('tappable', !busy && !allMode && !c.revealed.includes(i)));
   const shown = revealedSoFar(c).slice(0, revealedSoFar(c).length - c.revealed.filter((i) => animating.has(i)).length);
   renderSum(counts(shown));
@@ -713,14 +717,17 @@ function startRun(items, maxMs, play) {
 }
 function tapCard(i) {
   const c = store.state.current;
-  if (busy || !c || c.revealed.includes(i)) return;
+  if (!c) return;
+  // 한 장씩 공개: 뒤집는 중에 아직 안 연 '다른 카드'를 누르면 → 진행 중인 카드를 바로 완료하고 누른 카드를 곧바로 시작
+  if (busy && pending.length && !c.revealed.includes(i) && performance.now() - flipStartAt > 180) { while (busy && pending.length) skipNext(); }
+  if (busy || c.revealed.includes(i)) return;
   if (c.settings.unit !== 'single' && c.settings.reveal === 'all') return openAll();   // 카드를 눌러도 TAP TO OPEN과 같다
   const { types } = batchInfo(c);
   busy = true;
   try { store.markRevealed(i); } catch (e) { busy = false; toast(e.message); return; }
   animating.add(i);
   updateDraw();
-  const slot = $('slots').children[i];
+  const slot = slotEls()[i];
   startRun([{ i, slot, type: types[i] }], 5500, () => Reveal.flip(slot, types[i]));
 }
 function openAll() {
@@ -732,7 +739,7 @@ function openAll() {
   try { todo.forEach((i) => store.markRevealed(i)); } catch (e) { busy = false; toast(e.message); return; }
   todo.forEach((i) => animating.add(i));
   updateDraw();
-  const slots = $('slots').children;
+  const slots = slotEls();
   startRun(todo.map((i) => ({ i, slot: slots[i], type: types[i] })), 7000,
     () => Promise.all(todo.map((i, n) => Reveal.flip(slots[i], types[i], { delay: n * 520 }))));
 }
@@ -919,7 +926,11 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   // 새 버전으로 바뀔 때만 새로 고침한다. 처음 설치(이전 컨트롤러 없음) 때는 그대로 둔다.
   let refreshing = false;
   const hadController = !!navigator.serviceWorker.controller;
-  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || refreshing || busy) return; refreshing = true; location.reload(); });
+  let pendingReload = false;
+  const reloadNow = () => { if (refreshing) return; refreshing = true; location.reload(); };
+  // 새 버전이 받아지면 새로 고침. 구매 진행 중이면 미뤘다가 대기 화면으로 돌아왔을 때 한다(예전 화면이 계속 남지 않게)
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || refreshing) return; if (busy || store.state.current) { pendingReload = true; return; } reloadNow(); });
+  setInterval(() => { if (pendingReload && !busy && !store.state.current && $('scr-idle').classList.contains('on')) reloadNow(); }, 1500);
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }
 window.__app = { store, APP_VER, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */

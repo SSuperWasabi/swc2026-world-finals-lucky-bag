@@ -302,6 +302,57 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
     await ctx.close();
   });
 
+  // 11-10 버그: 빛 터짐 광선 요소가 카드 목록에 섞여 순번이 밀리면서, 연달아 누른 카드 대신 엉뚱한 카드가 뒤집혔다
+  await check('한 장씩: 카드 3장을 0.7초 간격으로 연달아 탭 → 누른 카드가 그대로 3장 모두 공개', async () => {
+    const { ctx, page } = await fresh(ONE);
+    await startQty(page, 3);
+    const center = async (i) => { const r = await page.locator('#slots .slot').nth(i).boundingBox(); return [r.x + r.width / 2, r.y + r.height / 2]; };
+    for (const i of [0, 1, 2]) {
+      const [x, y] = await center(i); await page.mouse.click(x, y); await page.waitForTimeout(700);
+      eq((await st(page)).current.revealed, [0, 1, 2].slice(0, i + 1), `탭 ${i + 1}번 뒤 공개 기록`);
+    }
+    await idle(page);
+    eq(await page.locator('#slots .slot.flipped').count(), 3, '3장 모두 앞면');
+    eq(await page.locator('#slots > :not(.slot)').count(), 0, '카드 목록에는 카드만 있음');
+    eq(await page.isVisible('#dNext'), true, '[지급 완료] 버튼');
+    await ctx.close();
+  });
+
+  // 11-10 버그: 빛이 이미 터진 카드(마무리 광택 중)를 누르면 빛 터짐·쾅이 한 번 더 재생됐다
+  await check('빛이 터진 뒤 다시 눌러도 빛 터짐이 반복되지 않음, 터지기 전에 누르면 바로 터지며 완료', async () => {
+    const { ctx, page } = await fresh(ONE);
+    await startQty(page, 2);
+    const center = async (i) => { const r = await page.locator('#slots .slot').nth(i).boundingBox(); return [r.x + r.width / 2, r.y + r.height / 2]; };
+    const rays = () => page.locator('.rays-layer .godrays').count();
+    const [x0, y0] = await center(0), [x1, y1] = await center(1);
+    await page.mouse.click(x0, y0);                       // 첫 카드 시작
+    await page.waitForFunction(() => document.querySelector('#slots .slot')._bursted === true);   // 빛이 터질 때까지 기다림
+    eq(await rays(), 2, '첫 카드 광선 한 벌');
+    await page.waitForTimeout(250);
+    await page.mouse.click(x1, y1);                       // 마무리 광택 중에 둘째 카드 탭
+    await page.waitForTimeout(200);
+    eq(await rays(), 2, '첫 카드 광선이 다시 생기지 않음');
+    eq(await page.locator('#slots .slot.burst').count(), 0, '첫 카드 섬광이 다시 켜지지 않음');
+    eq((await st(page)).current.revealed, [0, 1], '둘째 카드는 바로 시작');
+    await page.waitForTimeout(300);
+    await page.mouse.click(380, 950);                     // 둘째 카드는 터지기 전 → 바로 터지며 완료
+    await page.waitForTimeout(150);
+    eq(await rays(), 4, '둘째 카드 광선 한 벌 추가');
+    await idle(page);
+    eq(await page.locator('#slots .slot.flipped').count(), 2, '2장 모두 앞면');
+    await ctx.close();
+  });
+
+  await check('동시에 공개: 뒤집는 중에 화면을 누를 때마다 한 장씩 바로 완료', async () => {
+    const { ctx, page } = await fresh();
+    await startQty(page, 3);
+    await page.click('#dOpen'); await page.waitForTimeout(400);
+    for (const n of [1, 2, 3]) { await page.mouse.click(380, 950); await page.waitForTimeout(250); eq(await page.locator('#slots .slot.flipped:not(.revealing)').count() >= n, true, `탭 ${n}번 뒤 ${n}장 이상 완료`); }
+    await idle(page);
+    eq(await page.locator('#slots .slot.flipped').count(), 3, '3장 모두 앞면');
+    await ctx.close();
+  });
+
   await check('오프라인에서 새로 고침해도 앱이 뜸 (Service Worker 캐시)', async () => {
     const { ctx, page } = await fresh();
     // 캐시가 다 차고 이 페이지를 Service Worker가 맡을 때까지 기다린 뒤 오프라인으로 바꾼다.
