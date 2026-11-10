@@ -5,8 +5,8 @@
 - 전환 영상은 1→3, 3→4에서만 재생(취소·지급 완료 뒤에는 바로 메인).
 - 화면 흐름: 1 메인 루프 → 2 전환 → 3 수량 선택 → 4 선택 오픈(TAP TO OPEN) → 결과([지급 완료]/[다음 묶음], 관리자 "결과 확인" 끄면 탭·7초 자동) → 1.
 - 테스트: 규칙·저장 32개, 브라우저 흐름 22개 통과.
-- main에 커밋·푸시함(11-10). 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(비공개).
-- Pages: 비공개 저장소라 아직 없음 → iPad 주소는 Cloudflare 터널 또는 공개 전환 중 결정 필요.
+- main에 커밋·푸시함(11-10). 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(공개).
+- 배포: 저장소를 공개로 전환하고 GitHub Pages를 켬(11-10, Jason 결정). iPad 주소 https://ssuperwasabi.github.io/swc2026-world-finals-lucky-bag/app/ — main에 푸시하면 자동 배포된다.
 - 미리보기(녹화 영상): https://claude.ai/artifact/K6qMa6DudD61GNDyfJvX76
 
 ## 2. 일정
@@ -28,7 +28,7 @@
 
 ## 4. 남은 일
 1. iPad 실기기 확인: 소리(럼블·휙·쾅), 영상 여러 개 동시 재생, 유리 버튼 흐림 효과, 전체 속도.
-2. iPad 배포 주소: 비공개 저장소 Pages가 안 되면 Cloudflare 터널, 최종은 공개 Pages 검토.
+2. iPad에 PWA 설치 테스트(Safari → 공유 → 홈 화면에 추가), 비행기 모드에서 동작 확인.
 3. 3번 수량 선택 화면 배경 루프는 움직임이 약함(OAP 원본도 배경만 루프). 금가루·빛 훑기를 얹어 둠. 필요하면 AE에서 다시 렌더.
 4. 영상 규격: 1536×2048 영상은 H.264 레벨 5.1로 인코딩됨(CLAUDE.md의 "4.2 이하"와 다름). iPad Pro에서 재생 확인 필요.
 
