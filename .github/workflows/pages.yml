@@ -1,0 +1,36 @@
+# GitHub Pages 배포 — 앱 실행에 필요한 것만 올린다(루트 index.html + app/ 중 저장소에 올라간 파일).
+# 기본 방식(저장소 통째)은 '파일 동기화' 단계에서 계속 시간 초과가 나서 이 작업으로 바꿨다(2026-11-10).
+name: Pages 배포
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: 올릴 폴더 만들기
+        run: |
+          mkdir -p _site
+          cp index.html .nojekyll _site/
+          git ls-files -z app | xargs -0 -I{} cp --parents "{}" _site/
+          du -sh _site
+          find _site -type f | wc -l
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
+        with:
+          timeout: 1800000
