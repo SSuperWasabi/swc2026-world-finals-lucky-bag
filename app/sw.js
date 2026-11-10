@@ -1,7 +1,7 @@
 /* SWC2026 World Finals Lucky Bag — Service Worker
    앱 자산을 미리 캐시해 첫 실행 뒤에는 인터넷 없이 돈다.
    ※ 앱을 고쳐 다시 배포할 때는 CACHE 버전과 index.html의 APP_VER를 함께 올린다. */
-const CACHE = 'swc2026-world-finals-lucky-bag-v22';
+const CACHE = 'swc2026-world-finals-lucky-bag-v24';
 const PREFIX = 'swc2026-world-finals-lucky-bag-';
 const ASSETS = [
   './',
@@ -31,6 +31,7 @@ const ASSETS = [
   './assets/lb/card-front-b.png',
   './assets/lb/card-front-c.png',
   './assets/lb/pedestal.webp',
+  './assets/lb/reveal-sfx.mp3',
   './assets/lb/grade-A.png',
   './assets/lb/grade-B.png',
   './assets/lb/grade-C.png',

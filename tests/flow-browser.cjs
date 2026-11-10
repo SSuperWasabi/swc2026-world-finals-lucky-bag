@@ -161,9 +161,10 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
       localStorage.setItem('swc2026-world-finals-lucky-bag.state.v1', JSON.stringify({ version: 1, config: { unit: 'batch', reveal: 'all', dupReduce: true, pin: '0000' }, stock: { A: 100, B: 100, C: 100 }, initial: { A: 100, B: 100, C: 100 }, log: [], current: null, seq: 0 }));
     });
     await startQty(page, 3);
-    await page.locator('#slots .slot').first().click(); // 동시 모드에서는 카드 탭 무시
-    eq((await st(page)).current.revealed.length, 0, '카드 탭 무시');
-    await page.click('#dOpen'); await idle(page);
+    eq(await page.isVisible('#dOpen'), true, 'TAP TO OPEN 버튼');
+    await page.locator('#slots .slot').first().click(); // 동시 모드에서는 카드를 눌러도 TAP TO OPEN과 같다(11-10)
+    eq((await st(page)).current.revealed.length, 3, '카드 탭으로 3장 모두 공개 시작');
+    await idle(page);
     eq(await page.locator('#slots .slot.flipped').count(), 3, '3장 공개');
     await ctx.close();
   });

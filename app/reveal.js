@@ -6,7 +6,8 @@
    ④ 광택: 무지개빛이 앞면을 훑으며 카드가 기울었다 돌아옴
    배경은 어둡게(조명) — 공개가 시작되면 화면을 어둡게 눌러 금빛이 살아나게 한다.
    빛 효과는 캔버스에 더하기 합성(lighter)으로 그린다(겹칠수록 밝아지는 진짜 빛처럼).
-   약속(index.html이 쓰는 것): Reveal.enter(slots) / Reveal.flip(slot, type, {delay}) / Reveal.show(slot, type)  */
+   약속(index.html이 쓰는 것): Reveal.enter(slots) / Reveal.flip(slot, type, {delay}) / Reveal.show(slot, type)
+   / Reveal.finish(slot, type)(다시 눌러 바로 완료) / Reveal.prime()(누른 순간 소리 준비)  */
 (function (root) {
   const ART = {
     A: { vid: 'assets/lb/card-front-a-loop.mp4', poster: 'assets/lb/card-front-a-poster.jpg' },
@@ -16,36 +17,82 @@
   const reduced = () => root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   function settle(anim, ms) {
-    return Promise.race([anim.finished.catch(() => {}), wait(ms)]).then(() => { try { anim.finish(); } catch (e) { } });
+    return Promise.race([anim.finished.catch(() => {}), wait(ms)]).then(() => { try { if (anim.playState !== 'idle') anim.finish(); } catch (e) { } });
   }
 
-  /* ── 소리 ── */
-  let ac = null;
+  /* ── 소리 ──
+     넣어 주신 효과음(assets/lb/reveal-sfx.mp3 = "Magical Lucky Bag Reveal") 한 파일을 쓴다.
+     파일 구조(실측): 0~2.35초 잔잔한 깔림 → 2.35~2.94초 올라가는 휙 → 2.94초 쾅 → 약 3초 반짝이는 잔향.
+     빛이 터지는 순간에 '쾅'(BOOM_AT)이 정확히 오도록 재생 시작 위치를 맞추고,
+     타격감을 위해 저음(우르릉 → 쿵)을 한 겹 더 얹는다. 파일을 못 읽었으면 합성음으로 대신한다. */
+  const SFX_URL = 'assets/lb/reveal-sfx.mp3', BOOM_AT = 2.94;
+  let ac = null, master = null, sfxRaw = null, sfxBuf = null, decoding = false;
+  try { fetch(SFX_URL).then((r) => (r.ok ? r.arrayBuffer() : null)).then((b) => { sfxRaw = b; }).catch(() => { }); } catch (e) { }
   function ctx() {
-    try { if (!ac) ac = new (root.AudioContext || root.webkitAudioContext)(); if (ac.state === 'suspended') ac.resume(); } catch (e) { ac = null; }
+    try {
+      if (!ac) {
+        ac = new (root.AudioContext || root.webkitAudioContext)();
+        master = ac.createDynamicsCompressor();   // 카드 여러 장이 겹쳐 터져도 소리가 깨지지 않게
+        master.threshold.value = -9; master.knee.value = 10; master.ratio.value = 5; master.attack.value = 0.002; master.release.value = 0.22;
+        master.connect(ac.destination);
+      }
+      if (ac.state === 'suspended') ac.resume();
+      if (sfxRaw && !sfxBuf && !decoding) {
+        decoding = true; const ok = (b) => { if (b) sfxBuf = b; }, bad = () => { decoding = false; };
+        const pr = ac.decodeAudioData(sfxRaw.slice(0), ok, bad); if (pr && pr.then) pr.then(ok).catch(bad);
+      }
+    } catch (e) { ac = null; }
     return ac;
   }
-  function noiseBuf(a, sec) { const b = a.createBuffer(1, a.sampleRate * sec, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  function noiseBuf(a, sec) { const b = a.createBuffer(1, Math.max(1, Math.floor(a.sampleRate * sec)), a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+  // 저음 타격: 사인파가 150→34Hz로 떨어지는 '쿵' + 짧은 저역 잡음
+  function subBoom(a, at, nodes) {
+    const o = a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, at); o.frequency.exponentialRampToValueAtTime(34, at + 0.55);
+    const g = a.createGain(); g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(1.15, at + 0.012); g.gain.exponentialRampToValueAtTime(0.0001, at + 0.95);
+    o.connect(g).connect(master); o.start(at); o.stop(at + 1);
+    const n = a.createBufferSource(); n.buffer = noiseBuf(a, 0.3); const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(1400, at); f.frequency.exponentialRampToValueAtTime(140, at + 0.25);
+    const ng = a.createGain(); ng.gain.setValueAtTime(0.9, at); ng.gain.exponentialRampToValueAtTime(0.0001, at + 0.28); n.connect(f).connect(ng).connect(master); n.start(at);
+    nodes.push(o, n);
+  }
+  function playFile(a, when, offset, nodes) {
+    const s = a.createBufferSource(); s.buffer = sfxBuf; const g = a.createGain(); g.gain.value = 0.92; s.connect(g).connect(master);
+    if (offset >= 0) s.start(when, offset); else s.start(when - offset, 0);
+    nodes.push(s);
+  }
+  function stopNodes(slot) { (slot._snd || []).forEach((n) => { try { n.stop(); } catch (e) { } }); slot._snd = []; }
   const SFX = {
-    rumble(sec) { const a = ctx(); if (!a) return; const t = a.currentTime;
-      const n = a.createBufferSource(); n.buffer = noiseBuf(a, sec); const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 160;
-      const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.9, t + sec * 0.85); g.gain.exponentialRampToValueAtTime(0.0001, t + sec);
-      const o = a.createOscillator(); o.frequency.setValueAtTime(38, t); o.frequency.linearRampToValueAtTime(55, t + sec); const og = a.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.35, t + sec * 0.9); og.gain.exponentialRampToValueAtTime(0.0001, t + sec);
-      n.connect(f).connect(g).connect(a.destination); o.connect(og).connect(a.destination); n.start(t); n.stop(t + sec); o.start(t); o.stop(t + sec); },
-    whoosh(sec) { const a = ctx(); if (!a) return; const t = a.currentTime;
-      const n = a.createBufferSource(); n.buffer = noiseBuf(a, sec); const f = a.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.2;
-      f.frequency.setValueAtTime(300, t); f.frequency.exponentialRampToValueAtTime(2600, t + sec);
-      const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.7, t + sec * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, t + sec);
-      n.connect(f).connect(g).connect(a.destination); n.start(t); n.stop(t + sec); },
-    boom() { const a = ctx(); if (!a) return; const t = a.currentTime;
-      const o = a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(150, t); o.frequency.exponentialRampToValueAtTime(38, t + 0.7);
-      const g = a.createGain(); g.gain.setValueAtTime(1.0, t); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9); o.connect(g).connect(a.destination); o.start(t); o.stop(t + 0.95);
-      const n = a.createBufferSource(); n.buffer = noiseBuf(a, 0.5); const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(5000, t); f.frequency.exponentialRampToValueAtTime(300, t + 0.4);
-      const ng = a.createGain(); ng.gain.setValueAtTime(0.8, t); ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.45); n.connect(f).connect(ng).connect(a.destination); n.start(t);
-      // 반짝이는 고음(차임)
-      [1318, 1760, 2637].forEach((hz, i) => { const s = a.createOscillator(); s.type = 'triangle'; s.frequency.value = hz; const sg = a.createGain();
-        sg.gain.setValueAtTime(0.0001, t + 0.05 + i * 0.06); sg.gain.exponentialRampToValueAtTime(0.18, t + 0.08 + i * 0.06); sg.gain.exponentialRampToValueAtTime(0.0001, t + 1.2 + i * 0.1);
-        s.connect(sg).connect(a.destination); s.start(t); s.stop(t + 1.5); }); },
+    prime() { ctx(); },   // 사용자가 누른 순간에 불러 두면(소리 허용 + 파일 해독) 첫 카드부터 소리가 난다
+    // 뒤집기 한 번의 소리 전체를 예약: lead초 뒤에 빛이 터진다
+    start(slot, lead) {
+      const a = ctx(); if (!a) return; stopNodes(slot);
+      const t = a.currentTime, tb = t + lead, nodes = [];
+      // 우르릉: 저역 잡음 + 낮은 음이 터지는 순간까지 차오르다 뚝 끊김(직전의 정적이 '쾅'을 키운다)
+      const n = a.createBufferSource(); n.buffer = noiseBuf(a, lead + 0.1); const f = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(110, t); f.frequency.exponentialRampToValueAtTime(320, tb);
+      const g = a.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(1.0, tb - 0.06); g.gain.exponentialRampToValueAtTime(0.0001, tb - 0.01);
+      n.connect(f).connect(g).connect(master); n.start(t); n.stop(tb + 0.05);
+      const o = a.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(34, t); o.frequency.exponentialRampToValueAtTime(70, tb);
+      const og = a.createGain(); og.gain.setValueAtTime(0.0001, t); og.gain.exponentialRampToValueAtTime(0.55, tb - 0.06); og.gain.exponentialRampToValueAtTime(0.0001, tb - 0.01);
+      o.connect(og).connect(master); o.start(t); o.stop(tb + 0.05);
+      nodes.push(n, o);
+      if (sfxBuf) playFile(a, t, BOOM_AT - lead, nodes);      // 파일의 휙 → 쾅 → 잔향
+      else {                                                    // 대신 쓰는 합성 휙
+        const w = a.createBufferSource(); w.buffer = noiseBuf(a, 0.6); const wf = a.createBiquadFilter(); wf.type = 'bandpass'; wf.Q.value = 1.2;
+        const ws = Math.max(t, tb - 0.6); wf.frequency.setValueAtTime(400, ws); wf.frequency.exponentialRampToValueAtTime(5200, tb);
+        const wg = a.createGain(); wg.gain.setValueAtTime(0.0001, ws); wg.gain.exponentialRampToValueAtTime(0.7, tb - 0.05); wg.gain.exponentialRampToValueAtTime(0.0001, tb + 0.02);
+        w.connect(wf).connect(wg).connect(master); w.start(ws); nodes.push(w);
+      }
+      subBoom(a, tb, nodes);
+      slot._snd = nodes;
+    },
+    // 다시 눌러 바로 완료할 때: 예약된 소리를 끊고 '쾅'만 즉시
+    boomNow(slot) {
+      const a = ctx(); if (!a) return; stopNodes(slot);
+      const t = a.currentTime + 0.01, nodes = [];
+      if (sfxBuf) playFile(a, t, BOOM_AT - 0.03, nodes);
+      subBoom(a, t + 0.03, nodes);
+      slot._snd = nodes;
+    },
+    stop(slot) { stopNodes(slot); },
   };
 
   /* ── 빛 효과 캔버스(무대 전체, 반 해상도) ── */
@@ -230,6 +277,7 @@
   }
 
   /* ── 공개 ── */
+  const BURST_RGB = { A: '255,140,210', B: '255,214,120', C: '210,170,255' };
   // 레퍼런스 30fps 실측: 회전 5프레임(0.17초) · 옆면 빛기둥 14프레임(0.47초) · 휙 2프레임(0.07초) = 0.70초
   const T = { charge: 700, turn: 190, hang: 300, snap: 70 };   // 빛기둥 유지 0.30초(요청으로 레퍼런스 0.47초보다 짧게)
   async function flip(slot, type, opts) {
@@ -244,7 +292,7 @@
     slot.classList.add('revealing', 'charging');
     const R = rectOf(slot);
     // ① 빌드업: 제자리에서 테두리 빛이 차오르고 끝에 미세하게 떨림
-    SFX.rumble(T.charge / 1000 + 0.15);
+    SFX.start(slot, (T.charge + T.turn + T.hang + T.snap * 0.55) / 1000);   // 우르릉 → 휙 → 쾅 전체 예약
     fxCharge(slot, R, T.charge);
     const shake = [];
     // 떨림은 마지막에 반드시 제자리(0)로 돌아와야 다음 회전이 튀지 않음
@@ -252,7 +300,6 @@
     await settle(card.animate(shake, { duration: T.charge, easing: 'linear', fill: 'forwards' }), T.charge + 400);
     if (slot._stop) return;
     // ② 옆면까지 부드럽게 가속·감속 → 빛기둥으로 버팀 → 휙
-    SFX.whoosh((T.turn + T.hang) / 1000 + 0.1);
     slot.classList.add('edge');
     // 테두리 빛(CSS)은 카드가 거의 옆면이 됐을 때 끈다 → 회전 도중 빛이 '툭' 바뀌지 않음
     setTimeout(() => { if (!slot._stop) slot.classList.remove('charging'); }, T.turn * 0.8);
@@ -264,10 +311,10 @@
     const burstNow = () => {
       if (burstDone || slot._stop) return; burstDone = true;
       slot.classList.remove('edge');
-      SFX.boom(); playVid(vid);
+      playVid(vid);
       godRays(slot);
       slot.classList.add('burst');
-      fxBurst(slot, R, { A: '255,140,210', B: '255,214,120', C: '210,170,255' }[type] || '255,255,255');
+      fxBurst(slot, R, BURST_RGB[type] || '255,255,255');
       setTimeout(() => slot.classList.remove('burst'), 900);
     };
     setTimeout(burstNow, T.turn + T.hang + T.snap * 0.55);
@@ -303,5 +350,18 @@
     const v = fillFront(slot, type); slot.classList.add('flipped'); playVid(v);
   }
 
-  root.Reveal = { enter, flip, show, sfx: SFX };
+  /* 다시 눌러 바로 완료: 남은 연출을 건너뛰고 앞면 + 짧은 빛 터짐 + '쾅' */
+  function finish(slot, type) {
+    const done = slot.classList.contains('flipped') && !slot.classList.contains('revealing');
+    show(slot, type);
+    if (done || reduced()) return;
+    SFX.boomNow(slot);
+    const R = rectOf(slot); godRays(slot);
+    slot.classList.add('burst'); setTimeout(() => slot.classList.remove('burst'), 900);
+    fxBurst({}, R, BURST_RGB[type] || '255,255,255');   // {}: show()가 세운 멈춤 표시에 걸리지 않게
+    const card = slot.querySelector('.card');
+    if (card) card.animate([{ transform: 'rotateY(180deg) scale(1.1)' }, { transform: 'rotateY(180deg) scale(.985)', offset: 0.55 }, { transform: 'rotateY(180deg) scale(1)' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+  }
+
+  root.Reveal = { enter, flip, show, finish, prime: SFX.prime, sfx: SFX };
 })(globalThis);

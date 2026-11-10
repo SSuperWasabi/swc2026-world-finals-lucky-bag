@@ -1,10 +1,11 @@
 # handoff — 럭키백 뽑기 앱 인수인계
 
 ## 1. 현재 상태 (2026-11-10)
-- 버전 `swc-lb-v22`. 화면 1(메인)·3(수량 선택)·4(선택 오픈·결과)까지 연출 완료.
+- 버전 `swc-lb-v24`. 화면 1(메인)·3(수량 선택)·4(선택 오픈·결과)까지 연출 완료, 11-10 오후부터 화면별 최종 다듬기 중(1번·4번 1차 반영).
+- 전환 영상은 1→3, 3→4에서만 재생(취소·지급 완료 뒤에는 바로 메인).
 - 화면 흐름: 1 메인 루프 → 2 전환 → 3 수량 선택 → 4 선택 오픈(TAP TO OPEN) → 결과([지급 완료]/[다음 묶음], 관리자 "결과 확인" 끄면 탭·7초 자동) → 1.
 - 테스트: 규칙·저장 32개, 브라우저 흐름 19개 통과.
-- main에 커밋(11-10). 푸시는 Jason 승인 뒤. 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(비공개).
+- main에 커밋·푸시함(11-10). 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(비공개).
 - Pages: 비공개 저장소라 아직 없음 → iPad 주소는 Cloudflare 터널 또는 공개 전환 중 결정 필요.
 - 미리보기(녹화 영상): https://claude.ai/artifact/K6qMa6DudD61GNDyfJvX76
 
@@ -40,3 +41,8 @@
 - 받침대 소환진 `pedestal.webp`: Summonhenge 원화의 원판을 이미지 모델(GPT Image 2.6)로 분리·보라 보정. 원본은 `Resource/footage-src/`.
 - 등급 엠블럼 `grade-A~C.png`: 월드 결선 럭키드로우 앱의 OAP 방패+알파벳 에셋.
 - 뒤집기 레퍼런스: `Resource/reference/card flipping animation reference.mp4`. 회전 0.19초 · 옆면 빛기둥 0.30초 · 휙 0.07초(`reveal.js`의 T).
+- 1번 메인 이펙트·우상단 블록·하단 바: `scripts/ae/lb-main-fx.jsx`(LB_01_Main에 "LBFX " 레이어를 다시 만든다). 이펙트 소재는 키비주얼 PNG에서 이미지 모델로 추출해 `Resource/ae-work/footage/fx/kv-fx-*-a.png`.
+- AE 렌더는 명령줄 `aerender.exe`로(`-comp LB_01_Main_render -s 0 -e 539 -RStemplate "최고 설정" -OMtemplate "손실 없음"`). AE 화면의 렌더 대기열은 시작 직후 "사용자 중지"로 끊기는 일이 있었음. AE를 열 때 "UnMult 효과 없음" 알림 창을 닫아야 MCP 패널이 열린다.
+- 카드 뒷면 `card-back.png`: 금테 + SWC 2026 엠블럼(원본 `app/assets/lb/magnific_image-generator-*.png`, 예전 은색 뒷면은 `Resource/footage-src/card-back-v1-silver.png`).
+- 효과음 `reveal-sfx.mp3`: Jason이 준 "Magical Lucky Bag Reveal"(쾅 = 2.94초 지점). `reveal.js`가 빛 터지는 순간에 맞춰 재생하고 저음을 한 겹 더 얹는다. 실제 기기에서 소리 확인 필요.
+- 뒤집는 중에 화면을 다시 누르면 그 카드가 바로 완료(`Reveal.finish`). 동시에 공개 모드에서는 카드를 눌러도 TAP TO OPEN과 같다.

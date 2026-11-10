@@ -169,8 +169,8 @@
   .s-l,.s-r{z-index:2}.s-m{z-index:1}
   .card{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
   .face{position:absolute;inset:0;border-radius:6%}
-  .face img.frameimg{position:absolute;inset:0;width:100%;height:100%}
-  .back{filter:drop-shadow(0 0 36px #a46bff)}
+  .face img.frameimg{position:absolute;top:0;left:-1.9%;width:103.8%;height:100%;max-width:none}  /* 새 뒷면은 가로가 3.8% 넓은 비율 → 가운데 맞춤(변형 없이 위치로만) */
+  .back{filter:drop-shadow(0 0 30px rgba(255,200,110,.55))}
   .back .emb{position:absolute;left:50%;top:44%;width:38%;transform:translate(-50%,-50%)}
   .back .lb{position:absolute;left:0;right:0;top:56%;text-align:center;font-family:Unb;font-weight:800;font-size:calc(var(--cw)*.062);letter-spacing:.14em;text-shadow:0 0 16px #c9a2ff}
   .front{transform:rotateY(180deg);visibility:hidden;filter:drop-shadow(0 0 34px var(--acc))}
@@ -187,7 +187,7 @@
   @keyframes foilSweep{0%{opacity:0;background-position:110% 0}12%{opacity:1}88%{opacity:1}100%{opacity:0;background-position:-10% 0}}
   /* 1 빌드업: 테두리 빛이 점점 강해짐 */
   .slot.charging .back{animation:charge .7s ease-in forwards}
-  @keyframes charge{from{filter:drop-shadow(0 0 30px #a46bff) brightness(1)}to{filter:drop-shadow(0 0 24px #fff6dc) drop-shadow(0 0 70px #ffc95a) brightness(1.3)}}
+  @keyframes charge{from{filter:drop-shadow(0 0 30px rgba(255,200,110,.55)) brightness(1)}to{filter:drop-shadow(0 0 24px #fff6dc) drop-shadow(0 0 70px #ffc95a) brightness(1.3)}}
   /* 3 빛 터짐: 섬광 · 광선 · 바닥 고리 2겹 */
   .flash{position:absolute;inset:-3%;border-radius:8%;background:radial-gradient(closest-side,#fff 0 70%,#fff4d6 86%,rgba(255,240,200,0));opacity:0;pointer-events:none;transform:translateZ(-2px)}
   .slot.burst .flash{animation:flashOut .55s cubic-bezier(.3,0,.4,1) both}
@@ -227,7 +227,7 @@
   .flipped .back{visibility:hidden}
   .slot.tappable{cursor:pointer}
   .slot.tappable .back{animation:pulse 1.6s ease-in-out infinite}
-  @keyframes pulse{50%{filter:drop-shadow(0 0 60px #d7b8ff)}}
+  @keyframes pulse{50%{filter:drop-shadow(0 0 60px #ffe2a8)}}
   .hint{position:absolute;left:0;right:0;top:2172px;text-align:center;font-family:Unb;font-weight:700;font-size:64px;letter-spacing:.06em;text-shadow:0 0 20px #c9a2ff}
   .hint.blink{animation:blink 1.8s ease-in-out infinite}
   @keyframes blink{50%{opacity:.35}}
@@ -415,7 +415,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v22'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v24'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
 // 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
@@ -504,7 +504,7 @@ function renderSum(c) {
 }
 function slotHTML(cls) {
   return `<div class="slot ${cls}"><div class="ring"></div><div class="card">` +
-    `<div class="face back"><img class="frameimg" src="assets/lb/card-back.png" alt=""><img class="emb" src="assets/lb/emblem-x-white.png" alt=""><div class="lb">LUCKY BAG</div><div class="shine"></div></div>` +
+    `<div class="face back"><img class="frameimg" src="assets/lb/card-back.png" alt=""><div class="shine"></div></div>` +
     `<div class="face front"></div><div class="flash"></div></div></div>`;
 }
 const POS = { 1: ['s-m'], 2: ['s-l', 's-r'], 3: ['s-l', 's-m', 's-r'] };
@@ -583,7 +583,7 @@ let qty = 1;
 })();
 $('qMinus').onclick = () => { qty = Math.max(1, qty - 1); renderStaff(); };
 $('qPlus').onclick = () => { qty = Math.min(300, qty + 1); renderStaff(); };
-$('qCancel').onclick = () => withTransition(showIdle);
+$('qCancel').onclick = () => showIdle();   // 전환 영상 없음
 function chipsHTML(cfg) {
   const batches = BagEngine.splitBatches(qty, cfg.unit);
   return [cfg.unit === 'single' ? '한 개씩 추첨' : '한꺼번에 · 최대 3장',
@@ -616,6 +616,7 @@ $('qStart').onclick = () => {
   if (busy || $('qStart').disabled) return;
   $('qStart').disabled = true;
   try { store.startPurchase(qty); } catch (e) { toast(e.message); renderStaff(); return; }
+  Reveal.prime(); // 누른 순간에 소리 허용·효과음 해독(첫 카드부터 소리가 나게)
   busy = true; // 전환 영상이 끝나고 카드가 다 나올 때까지 잠금
   withTransition(() => renderDraw(true));
 };
@@ -633,6 +634,7 @@ function renderDraw(fresh) {
   const { n, types } = batchInfo(c);
   const solo = c.settings.unit === 'single';
   const cls = solo ? ['s-solo'] : POS[n];
+  pending = []; runId++;
   $('slots').innerHTML = cls.map(slotHTML).join('');
   const slots = [...$('slots').children];
   slots.forEach((s, i) => {
@@ -690,17 +692,36 @@ function updateDraw() {
     if ($('dNext')) $('dNext').onclick = nextStep;
   }
 }
+/* 뒤집는 중인 카드 목록(순서대로). 다시 누르면 맨 앞 카드부터 바로 완료한다 */
+let pending = [], flipStartAt = 0, runId = 0;
+const flipDone = (p) => p.slot.classList.contains('flipped') && !p.slot.classList.contains('revealing');
+function endRun(id) {
+  if (id !== runId) return; runId++;
+  pending.splice(0).forEach((p) => { ensureShown(p.slot, p.type); animating.delete(p.i); });
+  busy = false; updateDraw();
+}
+function skipNext() {
+  while (pending.length && flipDone(pending[0])) animating.delete(pending.shift().i);   // 이미 끝난 카드는 건너뜀
+  const p = pending.shift(); if (!p) return endRun(runId);
+  Reveal.finish(p.slot, p.type); animating.delete(p.i);
+  if (pending.every(flipDone)) endRun(runId); else updateDraw();
+}
+function startRun(items, maxMs, play) {
+  pending = items; flipStartAt = performance.now();
+  const id = ++runId;
+  runAnim(play, maxMs).then(() => endRun(id));
+}
 function tapCard(i) {
   const c = store.state.current;
   if (busy || !c || c.revealed.includes(i)) return;
-  if (c.settings.unit !== 'single' && c.settings.reveal === 'all') return;
+  if (c.settings.unit !== 'single' && c.settings.reveal === 'all') return openAll();   // 카드를 눌러도 TAP TO OPEN과 같다
   const { types } = batchInfo(c);
   busy = true;
   try { store.markRevealed(i); } catch (e) { busy = false; toast(e.message); return; }
   animating.add(i);
   updateDraw();
   const slot = $('slots').children[i];
-  runAnim(() => Reveal.flip(slot, types[i]), 5500).then(() => { ensureShown(slot, types[i]); animating.delete(i); busy = false; updateDraw(); });
+  startRun([{ i, slot, type: types[i] }], 5500, () => Reveal.flip(slot, types[i]));
 }
 function openAll() {
   const c = store.state.current;
@@ -712,8 +733,8 @@ function openAll() {
   todo.forEach((i) => animating.add(i));
   updateDraw();
   const slots = $('slots').children;
-  runAnim(() => Promise.all(todo.map((i, n) => Reveal.flip(slots[i], types[i], { delay: n * 520 }))), 7000)
-    .then(() => { todo.forEach((i) => { ensureShown(slots[i], types[i]); animating.delete(i); }); busy = false; updateDraw(); });
+  startRun(todo.map((i) => ({ i, slot: slots[i], type: types[i] })), 7000,
+    () => Promise.all(todo.map((i, n) => Reveal.flip(slots[i], types[i], { delay: n * 520 }))));
 }
 /* 결과 확인 끄기일 때: 다 열린 뒤 7초 자동 넘김, 1초 지난 뒤부터 화면 탭으로도 넘김 */
 const AUTO_MS = 7000, TAP_DELAY_MS = 1000;
@@ -725,6 +746,8 @@ function armAuto() {
 }
 function disarmAuto() { clearTimeout(autoTimer); autoTimer = null; }
 $('scr-draw').addEventListener('click', () => {
+  // 뒤집는 중에 다시 누르면 바로 완료(뒤집기를 시작한 그 탭은 제외)
+  if (busy && pending.length) { if (performance.now() - flipStartAt > 180) skipNext(); return; }
   if (!autoTimer || busy || performance.now() - autoArmedAt < TAP_DELAY_MS) return;
   nextStep();
 });
@@ -740,7 +763,7 @@ function nextStep() {
 /* ── 5 → 1: 직원이 [지급 완료]를 누르면 구매를 닫고 메인으로 ── */
 function completePurchase() {
   try { store.finishPurchase(); } catch (e) { toast(e.message); updateDraw(); return; }
-  withTransition(showIdle);
+  showIdle();   // 전환 영상은 1→3, 3→4에서만(Jason 11-10)
 }
 
 /* ── 관리자 ── */
