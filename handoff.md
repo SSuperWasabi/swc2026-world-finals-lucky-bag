@@ -1,12 +1,12 @@
 # handoff — 럭키백 뽑기 앱 인수인계
 
 ## 1. 현재 상태 (2026-11-10)
-- 버전 `swc-lb-v27`. 화면 1(메인)·3(수량 선택)·4(선택 오픈·결과)까지 연출 완료, 11-10 오후부터 화면별 최종 다듬기 중(1번·4번 1차 반영).
+- 버전 `swc-lb-v28`. 화면 1(메인)·3(수량 선택)·4(선택 오픈·결과)까지 연출 완료, 11-10 오후부터 화면별 최종 다듬기 중(1번·4번 1차 반영).
 - 전환 영상은 1→3, 3→4에서만 재생(취소·지급 완료 뒤에는 바로 메인).
 - 화면 흐름: 1 메인 루프 → 2 전환 → 3 수량 선택 → 4 선택 오픈(TAP TO OPEN) → 결과([지급 완료]/[다음 묶음], 관리자 "결과 확인" 끄면 탭·7초 자동) → 1.
 - 테스트: 규칙·저장 32개, 브라우저 흐름 22개 통과.
 - main에 커밋·푸시함(11-10). 원격 `origin` = SSuperWasabi/swc2026-world-finals-lucky-bag(공개).
-- 배포: 저장소를 공개로 전환하고 GitHub Pages를 켬(11-10, Jason 결정). iPad 주소 https://ssuperwasabi.github.io/swc2026-world-finals-lucky-bag/app/ — main에 푸시하면 자동 배포된다.
+- 배포: 저장소를 공개로 전환하고 GitHub Pages를 켬(11-10, Jason 결정). iPad 주소 https://ssuperwasabi.github.io/swc2026-world-finals-lucky-bag/app/ — main에 푸시하면 자동 배포된다(`.github/workflows/pages.yml`: 루트 index.html + app/의 추적 파일만 올림. 저장소 통째로 올리는 기본 방식은 파일 동기화에서 계속 시간 초과).
 - 미리보기(녹화 영상): https://claude.ai/artifact/K6qMa6DudD61GNDyfJvX76
 
 ## 2. 일정
@@ -40,7 +40,7 @@
 - 카드 앞면: `scripts/compose-card-fronts.py`가 카드 그림 + 캐릭터 루프 영상을 합쳐 `card-front-{a,b,c}-loop.mp4`를 만든다. 캐릭터 배율·회전·위치(PLACE)는 Jason 가시안 실측값, 방패 안쪽 창은 카드 그림에서 자동으로 딴다.
 - 받침대 소환진 `pedestal.webp`: Summonhenge 원화의 원판을 이미지 모델(GPT Image 2.6)로 분리·보라 보정. 원본은 `Resource/footage-src/`.
 - 등급 엠블럼 `grade-A~C.png`: 월드 결선 럭키드로우 앱의 OAP 방패+알파벳 에셋.
-- 뒤집기 레퍼런스: `Resource/reference/card flipping animation reference.mp4`. 회전 0.19초 · 옆면 빛기둥 0.30초 · 휙 0.07초(`reveal.js`의 T).
+- 뒤집기 레퍼런스: `Resource/reference/card flipping animation reference.mp4`. 회전 0.19초 · 옆면 빛기둥 0.30초 · 넘어가기 0.12초(고르게 돌고, 90% 지점에서 빛 터짐)(`reveal.js`의 T, BURST_AT).
 - 1번 메인 이펙트·우상단 블록·하단 바: `scripts/ae/lb-main-fx.jsx`(LB_01_Main에 "LBFX " 레이어를 다시 만든다). 이펙트 소재는 키비주얼 PNG에서 이미지 모델로 추출해 `Resource/ae-work/footage/fx/kv-fx-*-a.png`.
 - AE 렌더는 명령줄 `aerender.exe`로(`-comp LB_01_Main_render -s 0 -e 539 -RStemplate "최고 설정" -OMtemplate "손실 없음"`). AE 화면의 렌더 대기열은 시작 직후 "사용자 중지"로 끊기는 일이 있었음. AE를 열 때 "UnMult 효과 없음" 알림 창을 닫아야 MCP 패널이 열린다.
 - 카드 뒷면 `card-back.png`: 금테 + SWC 2026 엠블럼(원본 `app/assets/lb/magnific_image-generator-*.png`, 예전 은색 뒷면은 `Resource/footage-src/card-back-v1-silver.png`).

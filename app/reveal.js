@@ -2,7 +2,7 @@
    레퍼런스 완성본(22.9~25.6초) 타임라인:
    ① 빌드업 0.6초: 카드는 받침대 위 제자리, 금빛 테두리 빛이 점점 두껍고 밝게(블룸), 끝에 미세한 떨림 + 럼블
    ② 느린 뒤집기: 0.2초 만에 옆면까지 → 옆면(가는 빛기둥)으로 0.5초 버팀. 받침대에서 카드 위까지 솟는 빛기둥, 바닥 빛 웅덩이 + 휙 소리
-   ③ 휙 넘어감(0.1초) → 빛 터짐: 화면 섬광 + 앞면 과노출 → 카드 둘레 굵은 방사 광선 + 사방 불꽃 + 받침대 위로 퍼지는 고리 + 쾅
+   ③ 휙 넘어감(0.12초, 고르게 돌아 비스듬한 앞면이 보임) → 정면에 닿을 때 빛 터짐: 화면 섬광 + 앞면 과노출 → 카드 둘레 굵은 방사 광선 + 사방 불꽃 + 받침대 위로 퍼지는 고리 + 쾅
    ④ 광택: 무지개빛이 앞면을 훑으며 카드가 기울었다 돌아옴
    배경은 어둡게(조명) — 공개가 시작되면 화면을 어둡게 눌러 금빛이 살아나게 한다.
    빛 효과는 캔버스에 더하기 합성(lighter)으로 그린다(겹칠수록 밝아지는 진짜 빛처럼).
@@ -283,7 +283,9 @@
   /* ── 공개 ── */
   const BURST_RGB = { A: '255,140,210', B: '255,214,120', C: '210,170,255' };
   // 레퍼런스 30fps 실측: 회전 5프레임(0.17초) · 옆면 빛기둥 14프레임(0.47초) · 휙 2프레임(0.07초) = 0.70초
-  const T = { charge: 700, turn: 190, hang: 300, snap: 70 };   // 빛기둥 유지 0.30초(요청으로 레퍼런스 0.47초보다 짧게)
+  // 넘어가기(snap)는 0.12초 동안 고르게 돈다 — 0.07초에 처음부터 확 튀던 곡선은 비스듬한 앞면 프레임이 한 장도 안 나와 끊겨 보였다(11-10)
+  const T = { charge: 700, turn: 190, hang: 300, snap: 120 };   // 빛기둥 유지 0.30초(요청으로 레퍼런스 0.47초보다 짧게)
+  const BURST_AT = 0.9;   // 빛 터짐은 넘어가기의 90% 지점(정면에 거의 닿았을 때) — 도는 모습을 섬광이 가리지 않게
   async function flip(slot, type, opts) {
     const delay = (opts && opts.delay) || 0;
     slot._stop = false; slot._bursted = false;
@@ -296,7 +298,7 @@
     slot.classList.add('revealing', 'charging');
     const R = rectOf(slot);
     // ① 빌드업: 제자리에서 테두리 빛이 차오르고 끝에 미세하게 떨림
-    SFX.start(slot, (T.charge + T.turn + T.hang + T.snap * 0.55) / 1000);   // 우르릉 → 휙 → 쾅 전체 예약
+    SFX.start(slot, (T.charge + T.turn + T.hang + T.snap * BURST_AT) / 1000);   // 우르릉 → 휙 → 쾅 전체 예약
     fxCharge(slot, R, T.charge);
     const shake = [];
     // 떨림은 마지막에 반드시 제자리(0)로 돌아와야 다음 회전이 튀지 않음
@@ -321,11 +323,18 @@
       fxBurst(slot, R, BURST_RGB[type] || '255,255,255');
       setTimeout(() => slot.classList.remove('burst'), 900);
     };
-    setTimeout(burstNow, T.turn + T.hang + T.snap * 0.55);
+    setTimeout(burstNow, T.turn + T.hang + T.snap * BURST_AT);
+    // 넘어가는 동안 앞면에 금빛 테두리 + 약한 번짐(레퍼런스의 움직임 번짐). 끝 값은 평소 그림자와 같게 맞춰 끝날 때 튀지 않는다
+    setTimeout(() => {
+      if (slot._stop) return; const front = slot.querySelector('.face.front'); if (!front || !front.animate) return;
+      const acc = getComputedStyle(slot).getPropertyValue('--acc').trim() || '#c9a2ff';
+      try { front.animate([{ filter: 'brightness(1.5) drop-shadow(0 0 26px #ffd682) blur(4px)' }, { filter: `brightness(1) drop-shadow(0 0 34px ${acc}) blur(0px)` }],
+        { duration: T.snap + 110, easing: 'ease-out' }); } catch (e) { }
+    }, T.turn + T.hang);
     await settle(card.animate([
       { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(0deg) scale(1.03)', easing: 'cubic-bezier(.32,0,.67,1)' },
       { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(86deg) scale(1.03)', offset: T.turn / total, easing: 'linear' },
-      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(94deg) scale(1.03)', offset: (T.turn + T.hang) / total, easing: 'cubic-bezier(.2,.6,.3,1)' },
+      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(94deg) scale(1.03)', offset: (T.turn + T.hang) / total, easing: 'cubic-bezier(.25,.25,.6,1)' },
       { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(180deg) scale(1.09)' }], { duration: total, fill: 'forwards' }), total + 400);
     if (slot._stop) return;
     burstNow();   // 타이머가 밀렸을 때 대비(이미 터졌으면 아무것도 안 함)
