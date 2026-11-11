@@ -94,6 +94,9 @@
   .mainvid.on{visibility:visible}
   #stage.vidbg .bg,#stage.vidbg .panel,#stage.vidbg .panel2,#stage.vidbg .emblem-wrap,#stage.vidbg .store,#stage.vidbg .title{display:none}
   #scr-idle,#scr-staff,#scr-draw{background:#5b1fd0}
+  /* 첫 화면 아래 가운데 앱 버전(기존 럭키드로우 앱과 같은 자리·크기·색) */
+  #idleVer{position:absolute;left:50%;bottom:36px;transform:translateX(-50%);z-index:3;pointer-events:none;white-space:nowrap;
+    font-family:system-ui,-apple-system,sans-serif;font-weight:500;font-size:26px;color:#ffffffb3}
   /* ── 3번 선택 화면: OAP 18_Result Bo5 패널 ── */
   :root{--rb-ink:#2b0b6e;--rb-line:#3d1490;--rb-vio:#7a2ff0;--rb-blue:#3b7bff}
   .rb-panel{position:absolute;left:104px;right:102px;top:830px;bottom:285px;padding:64px 70px;display:flex;flex-direction:column;
@@ -196,13 +199,22 @@
   /* 무지개 띠도 작은 조각을 4배로 늘려 위치 이동으로만 움직인다(다시 그리지 않음) */
   .front .cf-foil::before{content:"";position:absolute;left:0;top:0;width:75%;height:25%;transform-origin:0 0;transform:translateX(-293.33%) scale(4);
     background:linear-gradient(115deg,transparent 26%,rgba(255,80,190,.85) 36%,rgba(255,236,110,.9) 44%,rgba(90,255,200,.85) 52%,rgba(110,140,255,.9) 60%,transparent 72%)}
+  /* ── 뒤집기 빛 3가지: 수정안 미리보기(Resource/mockups/snap-preview)와 같은 모양·비율. 투명도만 reveal.js가 매 프레임 바꾼다 ──
+     미리보기는 카드 폭 206px 기준 → 여기서는 카드 폭(--cw)에 대한 비율로 적는다 */
+  /* 옆면일 때의 가는 빛기둥: 폭 6/206, 카드 위로 11.7%·아래로 4% 더 뻗음. 카드 뒤에 깔린다(카드와 함께 돌지 않음) */
+  .pillar{position:absolute;left:50%;top:calc(var(--cw)*-.176);bottom:calc(var(--cw)*-.06);width:calc(var(--cw)*.0291);margin-left:calc(var(--cw)*-.01455);
+    border-radius:calc(var(--cw)*.0146);background:#fffbea;opacity:0;pointer-events:none;will-change:opacity;
+    box-shadow:0 0 calc(var(--cw)*.068) calc(var(--cw)*.0291) rgba(255,220,150,.9),0 0 calc(var(--cw)*.2233) calc(var(--cw)*.0777) rgba(255,190,90,.55)}
+  /* 카드 둘레 금빛: 카드 안에 있어 카드와 함께 돈다(빌드업 때 차오르고, 넘어가는 동안 다시 켜짐) */
+  .card .cglow{position:absolute;inset:.6% -1%;border-radius:calc(var(--cw)*.06);opacity:0;pointer-events:none;will-change:opacity;
+    box-shadow:0 0 calc(var(--cw)*.107) calc(var(--cw)*.012) rgba(255,205,110,1),0 0 calc(var(--cw)*.03) rgba(255,236,190,.9)}
+  /* 넘어가는 동안 앞면이 밝아짐(미리보기의 밝기 올림을 밝은 덮개로 대신) */
+  .front .cf-rim{position:absolute;inset:0;border-radius:calc(var(--cw)*.06);pointer-events:none;opacity:0;will-change:opacity;background:#fff3d6}
   .slot.foil .cf-foil{animation:foilFade 1.05s ease-in-out both}
   .slot.foil .cf-foil::before{animation:foilSweep 1.05s ease-in-out both}
   @keyframes foilFade{0%{opacity:0}12%{opacity:1}88%{opacity:1}100%{opacity:0}}
   @keyframes foilSweep{0%{transform:translateX(-293.33%) scale(4)}100%{transform:translateX(26.67%) scale(4)}}
-  /* 1 빌드업: 테두리 빛이 점점 강해짐(그림자 한 장의 투명도만 바꾼다) */
-  .slot.charging .back .pulse{box-shadow:0 0 24px 6px #fff6dc,0 0 70px 20px #ffc95a;animation:charge .7s ease-in forwards}
-  @keyframes charge{from{opacity:0}to{opacity:1}}
+  /* 1 빌드업의 테두리 빛은 위 .cglow가 맡는다(reveal.js가 시간표대로 켠다) */
   /* 3 빛 터짐: 섬광 · 광선 · 바닥 고리 2겹 */
   .flash{position:absolute;inset:-3%;border-radius:8%;background:radial-gradient(closest-side,#fff 0 70%,#fff4d6 86%,rgba(255,240,200,0));opacity:0;pointer-events:none;transform:translateZ(-2px)}
   .slot.burst .flash{animation:flashOut .55s cubic-bezier(.3,0,.4,1) both}
@@ -372,6 +384,7 @@
     <!-- 영상 주소는 data-src에 두고, 그 화면에 들어올 때만 올린다(go → useVideos). 올라오기 전에는 poster(첫 장면)가 보인다 -->
     <video id="mvIntro" class="mainvid" data-src="assets/main/main-intro.mp4" poster="assets/main/main-intro-poster.jpg" muted playsinline preload="auto" disablepictureinpicture></video>
     <video id="mvLoop" class="mainvid" data-src="assets/main/main-loop.mp4" poster="assets/main/main-loop-poster.jpg" muted playsinline loop preload="auto" disablepictureinpicture></video>
+    <div id="idleVer"></div>
   </section>
 
   <!-- 직원: 수량 입력 -->
@@ -448,8 +461,9 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v29'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v30'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
+$('idleVer').textContent = APP_VER;
 const stage = $('stage');
 // 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
 let storageBlocked = false;
@@ -477,14 +491,21 @@ function ensureShown(slot, type) {
 }
 
 /* ── 무대 맞춤 ── */
+/* iPad는 같은 화면인데도 높이를 두 가지(상태 막대 24pt 차이)로 번갈아 알려 주는 때가 있다.
+   v29는 그때마다 무대 크기를 다시 맞춰서 첫 화면이 매 프레임 1.7%씩 커졌다 작아졌다 했다(11-11 실기기 녹화).
+   → 폭이 그대로이고 배율이 3% 안에서 '커지는' 변화는 무시하고 작은 쪽에 머문다. 회전·창 크기 변경처럼 큰 변화만 다시 맞춘다. */
+let fitS = 0, fitW = 0;
 function fit() {
-  const s = Math.min(innerWidth / 2048, innerHeight / 2732);
-  stage.style.transform = `translate(${(innerWidth - 2048 * s) / 2}px,${(innerHeight - 2732 * s) / 2}px) scale(${s})`;
+  const w = innerWidth, h = innerHeight;
+  if (!w || !h) return;
+  const s = Math.min(w / 2048, h / 2732);
+  if (fitS && Math.abs(w - fitW) < fitW * 0.03 && s >= fitS && s < fitS * 1.03) return;
+  fitS = s; fitW = w;
+  stage.style.transform = `translate(${(w - 2048 * s) / 2}px,${(h - 2732 * s) / 2}px) scale(${s})`;
 }
 addEventListener('resize', fit); fit();
 // iPad는 처음 뜰 때·회전 직후 화면 크기를 늦게 알려 주는 일이 있어 한 번 더 맞춘다
 addEventListener('orientationchange', () => setTimeout(fit, 300));
-if (window.visualViewport) window.visualViewport.addEventListener('resize', fit);
 setTimeout(fit, 400);
 
 /* ── 영상은 지금 화면에 필요한 것만 메모리에 올린다 ──
@@ -550,7 +571,7 @@ function renderSum(c) {
   el.setAttribute('aria-label', sumText(c));
 }
 function slotHTML(cls) {
-  return `<div class="slot ${cls}"><div class="ring"></div><div class="card">` +
+  return `<div class="slot ${cls}"><div class="ring"></div><i class="pillar"></i><div class="card"><i class="cglow"></i>` +
     `<div class="face back"><i class="pulse"></i><img class="frameimg" src="assets/lb/card-back.png" alt=""><div class="shine"></div></div>` +
     `<div class="face front"></div><div class="flash"></div></div></div>`;
 }

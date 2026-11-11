@@ -138,36 +138,6 @@
   function roundRect(x, y, w, h, r) { cx.beginPath(); cx.moveTo(x + r, y); cx.arcTo(x + w, y, x + w, y + h, r); cx.arcTo(x + w, y + h, x, y + h, r); cx.arcTo(x, y + h, x, y, r); cx.arcTo(x, y, x + w, y, r); cx.closePath(); }
   const ease = { in: (t) => t * t * t, out: (t) => 1 - Math.pow(1 - t, 3) };
 
-  /* ① 테두리 빛(빌드업): 점점 두껍고 밝게, 끝에서 깜빡임 */
-  function fxCharge(slot, R, ms) {
-    const tail = 140; // 돌기 시작하면 빠르게 꺼짐(테두리 빛이 허공에 남지 않게)
-    addFx(slot, ms + tail, (p, now) => {
-      const tt = p * (ms + tail), off = tt > ms ? 1 - (tt - ms) / tail : 1;
-      const e = Math.min(1, ease.in(Math.min(1, tt / ms)) * 1.15) * off, fl = 0.85 + 0.15 * Math.sin(now / 23);
-      const pad = 2 + e * 3;
-      for (const [lw, a, col] of [[64 * e + 10, 0.07 * e, '255,170,50'], [40 * e + 8, 0.12 * e, '255,180,60'], [22 * e + 6, 0.25 * e, '255,200,90'], [10 + e * 6, 0.6 * e * fl, '255,226,150'], [2.5 + e * 2, e * fl, '255,255,240']]) {
-        cx.strokeStyle = `rgba(${col},${a})`; cx.lineWidth = lw; roundRect(R.x - pad, R.y - pad, R.w + pad * 2, R.h + pad * 2, R.w * 0.07); cx.stroke();
-      }
-      glow('gold', R.cx, R.cy, R.w * 2.2, R.h * 1.7, 0.45 * e);             // 카드 뒤 은은한 후광
-      glow('gold', R.cx, R.y + R.h * 1.15, R.w * 1.6, R.h * 0.22, 0.7 * e); // 받침대 위 빛
-    });
-  }
-  /* ② 옆면 빛기둥: 받침대에서 카드 위까지 솟는 세로 빛 + 바닥 빛 웅덩이 */
-  function fxPillar(slot, R, ms) {
-    addFx(slot, ms, (p, now) => {
-      const a = Math.min(1, p / 0.12) * (p > 0.9 ? (1 - p) / 0.1 : 1) * (0.88 + 0.12 * Math.sin(now / 17));
-      const top = R.y - R.h * 0.14, bot = R.y + R.h * 1.15, h = bot - top;
-      glow('gold', R.cx, (top + bot) / 2, R.w * 0.9, h * 1.15, 0.55 * a);     // 넓은 금빛 번짐
-      const g = cx.createLinearGradient(R.cx - 30, 0, R.cx + 30, 0);
-      g.addColorStop(0, 'rgba(255,190,70,0)'); g.addColorStop(0.5, `rgba(255,224,150,${0.9 * a})`); g.addColorStop(1, 'rgba(255,190,70,0)');
-      cx.fillStyle = g; cx.fillRect(R.cx - 30, top, 60, h);                   // 중간 빛
-      cx.fillStyle = `rgba(255,236,190,${0.5 * a})`; cx.fillRect(R.cx - 9, top + h * 0.01, 18, h * 0.98);
-      cx.fillStyle = `rgba(255,255,245,${a})`; cx.fillRect(R.cx - 3.5, top + h * 0.02, 7, h * 0.96);   // 하얀 심
-      glow('white', R.cx, top, 60, 120, 0.8 * a);                               // 위 끝 반짝
-      glow('gold', R.cx, bot, R.w * 1.3, R.h * 0.2, 0.9 * a);                   // 바닥 빛 웅덩이
-      glow('white', R.cx, bot, R.w * 0.5, R.h * 0.07, a);
-    });
-  }
   /* ③ 빛 터짐 */
   function fxBurst(slot, R, rgb) {
     addFx(null, 380, (p) => { cx.fillStyle = `rgba(255,236,200,${0.42 * Math.pow(1 - p, 2)})`; cx.fillRect(0, 0, CW, CH); });       // 화면 섬광
@@ -269,7 +239,7 @@
     if (f.dataset.type === type) return f.querySelector('video');
     f.dataset.type = type;
     f.innerHTML = `<video class="cf-vid" src="${a.vid}" poster="${a.poster}" muted loop playsinline preload="auto" disablepictureinpicture></video>` +
-      `<div class="cf-badge">${type}</div><div class="cf-name">LUCKY BAG ${type}</div><div class="cf-foil"></div>`;
+      `<div class="cf-badge">${type}</div><div class="cf-name">LUCKY BAG ${type}</div><div class="cf-foil"></div><i class="cf-rim"></i>`;
     return f.querySelector('video');
   }
   function playVid(v) { if (v) { try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } }
@@ -289,6 +259,50 @@
   // 넘어가기(snap)는 0.12초 동안 고르게 돈다 — 0.07초에 처음부터 확 튀던 곡선은 비스듬한 앞면 프레임이 한 장도 안 나와 끊겨 보였다(11-10)
   const T = { charge: 700, turn: 190, hang: 300, snap: 120 };   // 빛기둥 유지 0.30초(요청으로 레퍼런스 0.47초보다 짧게)
   const BURST_AT = 0.9;   // 빛 터짐은 넘어가기의 90% 지점(정면에 거의 닿았을 때) — 도는 모습을 섬광이 가리지 않게
+  /* 카드 움직임은 한 줄의 시간표(poseAt)로 계산해 매 프레임 직접 넣는다.
+     전에는 브라우저 애니메이션(card.animate)을 여러 개 이어 붙였는데, iPad Safari에서는 도는 도중 앞면으로 바꾸는 순간
+     회전이 풀려 앞면이 좌우가 뒤집힌 채 0.25초 먼저 정면으로 튀어나왔다(11-11 실기기 녹화). PC Chrome에서는 안 생기던 문제.
+     Jason이 승인한 '수정안' 미리보기와 같은 방식(시간 → 각도 직접 계산)이라 어느 기기에서나 같은 모습이 나온다. */
+  function bez(x1, y1, x2, y2) {   // 3차 베지어 완급(CSS cubic-bezier와 같은 계산)
+    const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx, cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+    return (x) => { if (x <= 0) return 0; if (x >= 1) return 1; let t = x; for (let i = 0; i < 8; i++) { const f = ((ax * t + bx) * t + cx) * t - x, d = (3 * ax * t + 2 * bx) * t + cx; if (Math.abs(d) < 1e-6) break; t -= f / d; } return ((ay * t + by) * t + cy) * t; };
+  }
+  const EZ = { turn: bez(0.32, 0, 0.67, 1), snap: bez(0.25, 0.25, 0.6, 1), pop: bez(0.2, 0.8, 0.2, 1), io: bez(0.42, 0, 0.58, 1) };
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const SETTLE = 480, FOIL = 1050;   // 앞면이 제자리로 돌아오는 시간 · 무지개 광택 + 기울기 시간
+  const outCubic = (u) => 1 - Math.pow(1 - u, 3);
+  /* 시간(ms) → 카드 모습. Jason이 승인한 수정안 미리보기(Resource/mockups/snap-preview/index.html의 stateAt, B안)와 같은 식이다.
+     미리보기는 카드 폭 206px 기준이라, 길이는 k(= 실제 카드 폭 / 206)를 곱한다.
+       rim    빌드업 때 카드 둘레 금빛(카드에 붙어 함께 돈다)   pillar 옆면일 때의 가는 빛기둥
+       glow   넘어가는 동안의 금빛 + 밝아짐                      shake  빌드업 떨림(좌우)
+     미리보기에 없는 것은 맨 끝 구간(④ 무지개 광택 + 기울기)뿐이다. */
+  function poseAt(t, k) {
+    const t1 = T.charge, t2 = t1 + T.turn, t3 = t2 + T.hang, t4 = t3 + T.snap, t5 = t4 + SETTLE;
+    let x = 0, ry = 0, rx = 0, sc = 1, rim = 0, glow = 0, pillar = 0;
+    if (t < t1) {            // ① 빌드업
+      const u = Math.max(0, t / t1); rim = u * u * u; x = Math.pow(u, 2.2) * 2 * Math.sin(t / 14) * k; sc = 1 + 0.03 * u;
+    } else if (t < t2) {     // ② 옆면까지
+      ry = 86 * EZ.turn((t - t1) / T.turn); sc = 1.03; rim = 1 - (t - t1) / T.turn;
+    } else if (t < t3) {     // 옆면(빛기둥)으로 버팀
+      ry = 86 + 8 * (t - t2) / T.hang; sc = 1.03; pillar = Math.min(1, (t - t2) / 30);
+    } else if (t < t4) {     // ③ 넘어감: 고르게 돌아 비스듬한 앞면이 보인다
+      const u = (t - t3) / T.snap;
+      ry = 94 + 86 * EZ.snap(u); sc = 1.03 + 0.06 * u; pillar = Math.max(0, 1 - u * 2.5); glow = Math.sin(Math.PI * Math.min(1, u * 1.1));
+    } else if (t < t5) {     // 정면에서 제자리 크기로
+      const u = Math.min(1, (t - t4) / SETTLE);
+      ry = 180; sc = 1.09 - 0.09 * outCubic(u); glow = Math.max(0, 0.5 * (1 - (t - t4) / 200));
+    } else {                 // ④ 무지개 광택과 함께 기울었다 돌아옴(앱에만 있는 마무리)
+      const p = EZ.io(Math.min(1, (t - t5) / FOIL));
+      if (p < 0.38) { ry = lerp(180, 196, p / 0.38); rx = lerp(0, 7, p / 0.38); }
+      else if (p < 0.74) { ry = lerp(196, 168, (p - 0.38) / 0.36); rx = lerp(7, -4, (p - 0.38) / 0.36); }
+      else { ry = lerp(168, 180, (p - 0.74) / 0.26); rx = lerp(-4, 0, (p - 0.74) / 0.26); }
+    }
+    return { x, ry, rx, sc, rim, glow, pillar };
+  }
+  function setPose(card, p) {
+    card.style.transform = `translateX(${p.x.toFixed(2)}px) rotateY(${p.ry.toFixed(2)}deg) rotateX(${p.rx.toFixed(2)}deg) scale(${p.sc.toFixed(4)})`;
+  }
+  const FLIP_MS = T.charge + T.turn + T.hang + T.snap + SETTLE + FOIL;
   async function flip(slot, type, opts) {
     const delay = (opts && opts.delay) || 0;
     slot._stop = false; slot._bursted = false;
@@ -299,26 +313,13 @@
     if (slot._stop) return;
     const scr = slot.closest('.scr'); if (scr) scr.classList.add('spot');   // 배경을 어둡게 눌러 금빛이 살게
     slot.classList.add('revealing', 'charging');
-    const R = rectOf(slot);
-    // ① 빌드업: 제자리에서 테두리 빛이 차오르고 끝에 미세하게 떨림
+    const R = rectOf(slot), k = slot.offsetWidth / 206;
+    const lit = slot.querySelector('.cf-rim'), cglow = slot.querySelector('.cglow'), pil = slot.querySelector('.pillar');
+    const fx = (el, v) => { if (el) el.style.opacity = v > 0.01 ? v.toFixed(2) : '0'; };
     SFX.start(slot, (T.charge + T.turn + T.hang + T.snap * BURST_AT) / 1000);   // 우르릉 → 휙 → 쾅 전체 예약
-    fxCharge(slot, R, T.charge);
-    const shake = [];
-    // 떨림은 마지막에 반드시 제자리(0)로 돌아와야 다음 회전이 튀지 않음
-    for (let i = 0; i <= 14; i++) { const k = i === 14 ? 0 : Math.pow(i / 14, 2.2) * 7; shake.push({ transform: `translate(${(i % 2 ? 1 : -1) * k}px,${(i % 3 - 1) * k * 0.5}px) rotateZ(${(i % 2 ? -1 : 1) * k * 0.08}deg) rotateY(0deg) scale(${1 + 0.03 * i / 14})` }); }
-    await settle(card.animate(shake, { duration: T.charge, easing: 'linear', fill: 'forwards' }), T.charge + 400);
-    if (slot._stop) return;
-    // ② 옆면까지 부드럽게 가속·감속 → 빛기둥으로 버팀 → 휙
-    slot.classList.add('edge');
-    // 테두리 빛(CSS)은 카드가 거의 옆면이 됐을 때 끈다 → 회전 도중 빛이 '툭' 바뀌지 않음
-    setTimeout(() => { if (!slot._stop) slot.classList.remove('charging'); }, T.turn * 0.8);
-    setTimeout(() => { if (!slot._stop) fxPillar(slot, R, T.turn * 0.4 + T.hang + T.snap * 0.5); }, T.turn * 0.6);
-    const total = T.turn + T.hang + T.snap;
-    setTimeout(() => { if (!slot._stop) slot.classList.add('flipped'); }, T.turn + T.hang * 0.6);
     // ③ 빛 터짐: 휙 넘어가는 마지막 순간에 맞춰 터뜨림(다 넘어간 뒤 기다리면 맨 앞면이 잠깐 보임)
-    let burstDone = false;
     const burstNow = () => {
-      if (burstDone || slot._stop) return; burstDone = true; slot._bursted = true;   // 이 카드는 빛이 이미 터짐
+      if (slot._bursted || slot._stop) return; slot._bursted = true;   // 이 카드는 빛이 이미 터짐
       slot.classList.remove('edge');
       playVid(vid);
       godRays(slot);
@@ -326,36 +327,40 @@
       fxBurst(slot, R, BURST_RGB[type] || '255,255,255');
       setTimeout(() => slot.classList.remove('burst'), 900);
     };
-    setTimeout(burstNow, T.turn + T.hang + T.snap * BURST_AT);
-    // (넘어가는 0.2초 동안 앞면에 걸던 흐림·그림자 필터는 뺐다 — 영상이 든 앞면 전체를 매 프레임 흐리게 다시 그려, 가장 바쁜 순간에 iPad를 멈추게 했다.
-    //  이 구간은 섬광이 카드를 덮고 있어 눈에 보이는 차이는 거의 없다)
-    await settle(card.animate([
-      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(0deg) scale(1.03)', easing: 'cubic-bezier(.32,0,.67,1)' },
-      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(86deg) scale(1.03)', offset: T.turn / total, easing: 'linear' },
-      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(94deg) scale(1.03)', offset: (T.turn + T.hang) / total, easing: 'cubic-bezier(.25,.25,.6,1)' },
-      { transform: 'translate(0px,0px) rotateZ(0deg) rotateY(180deg) scale(1.09)' }], { duration: total, fill: 'forwards' }), total + 400);
-    if (slot._stop) return;
-    burstNow();   // 타이머가 밀렸을 때 대비(이미 터졌으면 아무것도 안 함)
-    await settle(card.animate([
-      { transform: 'rotateY(180deg) scale(1.09)' }, { transform: 'rotateY(180deg) scale(.985)', offset: 0.55 },
-      { transform: 'rotateY(180deg) scale(1)' }], { duration: 480, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'forwards' }), 900);
-    if (slot._stop) return;
-    // ④ 무지개 광택 + 기울기
-    slot.classList.add('foil');
-    await settle(card.animate([
-      { transform: 'rotateY(180deg) rotateX(0deg)' }, { transform: 'rotateY(196deg) rotateX(7deg)', offset: 0.38 },
-      { transform: 'rotateY(168deg) rotateX(-4deg)', offset: 0.74 }, { transform: 'rotateY(180deg) rotateX(0deg)' }],
-      { duration: 1050, easing: 'ease-in-out', fill: 'forwards' }), 1500);
-    if (slot._stop) return;
+    const t1 = T.charge, t3 = t1 + T.turn + T.hang, t5 = t3 + T.snap + SETTLE;
+    const id = (card._run = (card._run || 0) + 1), done = {};
+    const at = (key, when, t, fn) => { if (!done[key] && t >= when) { done[key] = 1; fn(); } };
+    await new Promise((res) => {
+      const t0 = performance.now();
+      const step = (now) => {
+        if (slot._stop || card._run !== id) return res();
+        const t = Math.min(FLIP_MS, Math.max(0, now - t0)), p = poseAt(t, k);
+        setPose(card, p);
+        fx(cglow, Math.max(0.9 * p.rim, p.glow));   // 카드 둘레 금빛(카드와 함께 돈다)
+        fx(lit, 0.3 * p.glow);                      // 넘어가는 동안 앞면이 밝아짐
+        fx(pil, p.pillar);                          // 옆면일 때의 가는 빛기둥
+        at('edge', t1, t, () => slot.classList.add('edge'));
+        at('uncharge', t1 + T.turn * 0.8, t, () => slot.classList.remove('charging'));   // 테두리 빛은 카드가 거의 옆면일 때 끈다
+        if (!done.front && p.ry >= 90) { done.front = 1; slot.classList.add('flipped'); }   // 정확히 옆면(90°)을 지날 때 앞면으로 바꾼다
+        at('burst', t3 + T.snap * BURST_AT, t, burstNow);
+        at('foil', t5, t, () => slot.classList.add('foil'));
+        if (t >= FLIP_MS) return res();
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    });
+    if (slot._stop || card._run !== id) return;
     slot.classList.remove('foil', 'revealing');
-    card.getAnimations().forEach((a) => a.cancel());
+    card.style.transform = ''; [cglow, lit, pil].forEach((el) => { if (el) el.style.opacity = ''; });
     slot.classList.add('flipped');
   }
 
   /* 즉시 앞면 확정(복구·시간 초과용): 진행 중 연출을 멈추고 남은 효과를 지운다 */
   function show(slot, type) {
     slot._stop = true;
-    const card = slot.querySelector('.card'); if (card) card.getAnimations().forEach((a) => a.cancel());
+    const card = slot.querySelector('.card');
+    if (card) { card._run = (card._run || 0) + 1; card.getAnimations().forEach((a) => a.cancel()); card.style.transform = ''; }   // 진행 중인 움직임을 멈추고 직접 넣은 각도를 지운다
+    slot.querySelectorAll('.cf-rim,.cglow,.pillar').forEach((el) => { el.style.opacity = ''; });
     slot.classList.remove('revealing', 'charging', 'edge', 'burst', 'foil');
     const scr = slot.closest('.scr'); if (scr) scr.classList.add('spot');
     const v = fillFront(slot, type); slot.classList.add('flipped'); playVid(v);
@@ -376,7 +381,16 @@
     slot.classList.add('burst'); setTimeout(() => slot.classList.remove('burst'), 900);
     fxBurst({}, R, BURST_RGB[type] || '255,255,255');   // {}: show()가 세운 멈춤 표시에 걸리지 않게
     const card = slot.querySelector('.card');
-    if (card) card.animate([{ transform: 'rotateY(180deg) scale(1.1)' }, { transform: 'rotateY(180deg) scale(.985)', offset: 0.55 }, { transform: 'rotateY(180deg) scale(1)' }], { duration: 420, easing: 'cubic-bezier(.2,.8,.2,1)' });
+    if (!card) return;
+    // 앞면이 살짝 커졌다 돌아오는 마무리(0.42초)도 같은 방식으로 직접 넣는다
+    const id = (card._run = (card._run || 0) + 1), t0 = performance.now();
+    const step = (now) => {
+      if (card._run !== id) return;
+      const u = Math.min(1, Math.max(0, now - t0) / 420), p = EZ.pop(u);
+      const sc = p < 0.55 ? lerp(1.1, 0.985, p / 0.55) : lerp(0.985, 1, (p - 0.55) / 0.45);
+      if (u < 1) { card.style.transform = `rotateY(180deg) scale(${sc.toFixed(4)})`; requestAnimationFrame(step); } else card.style.transform = '';
+    };
+    requestAnimationFrame(step);
   }
 
   root.Reveal = { enter, flip, show, finish, prime: SFX.prime, sfx: SFX };
