@@ -245,16 +245,40 @@
   function playVid(v) { if (v) { try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } }
 
   /* ── 등장: 가운데 → 왼쪽 → 오른쪽 순서로 회전하며 날아와 앉음 ── */
+  /* 등장도 뒤집기와 같은 방식으로 움직인다: 시간 → 자세를 계산해 매 프레임 카드에 직접 넣는다.
+     11-11 실기기 진단 기록(v33): 등장하는 동안 화면 처리(메인 스레드)는 한 번도 멈추지 않았는데 화면에서는 카드가 끊겼다.
+     → 끊김은 '그려 내는 단계'에서 생긴다. 같은 화면·같은 카드로 뒤집기(직접 넣는 방식)는 초당 57장으로 부드럽게 돌았고,
+       등장(CSS·브라우저 애니메이션을 '시작'시키는 방식, v30~v33)만 카드가 출발할 때마다 끊겼다.
+     그래서 애니메이션을 새로 시작시키지 않는다. 카드(.card)와 칸(.slot)은 처음부터 끝까지 같은 층으로 남고, 값(위치·각도·크기·투명도)만 바뀐다. */
+  const ENTER_MS = 900, ENTER_GAP = 200;
+  let enterRun = 0;
   function enter(slots) {
-    if (reduced()) { slots.forEach((s) => s.classList.remove('preenter')); return Promise.resolve(); }
-    // 움직임 자체는 CSS(index.html의 .entering / @keyframes cardIn)가 한다 — iPad에서 화면 처리가 바빠도 끊기지 않게.
+    const tidy = () => slots.forEach((s) => { const c = s.querySelector('.card'); if (c) c.style.transform = ''; s.style.opacity = ''; s.classList.remove('preenter', 'entering'); });
+    if (reduced()) { tidy(); return Promise.resolve(); }
     const order = slots.length === 3 ? [1, 0, 2] : slots.map((_, i) => i);
-    let lastEl = null, total = 0;
-    order.forEach((idx, n) => { const s = slots[idx]; s.style.setProperty('--enter-delay', (n * 0.2) + 's'); s.classList.add('entering'); s.classList.remove('preenter'); lastEl = s;
-      // 진단: 카드마다 실제로 움직이기 시작한 순간을 남긴다(멈춤이 카드 출발과 겹치는지 보려고)
-      s.addEventListener('animationstart', function on(e) { if (e.target !== s || e.animationName !== 'cardIn') return; s.removeEventListener('animationstart', on); if (typeof root.mark === 'function') root.mark('카드 ' + (n + 1) + ' 출발'); }); total = 900 + n * 200; });
-    const ended = new Promise((res) => { if (!lastEl) return res(); const on = (e) => { if (e.target === lastEl && e.animationName === 'cardIn') { lastEl.removeEventListener('animationend', on); res(); } }; lastEl.addEventListener('animationend', on); });
-    return Promise.race([ended, wait(total + 700)]).then(() => slots.forEach((s) => { s.classList.remove('entering'); s.style.removeProperty('--enter-delay'); }));
+    const ez = bez(0.2, 0.8, 0.2, 1), id = ++enterRun;
+    const items = order.map((idx, n) => ({ slot: slots[idx], card: slots[idx].querySelector('.card'), delay: n * ENTER_GAP, started: false, n }));
+    slots.forEach((s) => s.classList.add('entering'));   // 등장 중에는 둥실 움직임(CSS)을 끈다 — 켜져 있으면 직접 넣은 자세를 덮어쓴다
+    return new Promise((res) => {
+      const t0 = performance.now();
+      const step = (now) => {
+        if (id !== enterRun) return res();
+        let left = 0;
+        for (const it of items) {
+          const u = (now - t0 - it.delay) / ENTER_MS;
+          if (u < 0) { left++; continue; }                       // 아직 출발 전: 1% 투명도로 제자리에 대기
+          if (!it.started) { it.started = true; it.slot.classList.remove('preenter'); if (typeof root.mark === 'function') root.mark('카드 ' + (it.n + 1) + ' 출발'); }
+          if (u >= 1) { it.card.style.transform = ''; it.slot.style.opacity = ''; continue; }
+          left++;
+          const p = ez(u);
+          it.card.style.transform = `translate3d(0,${(-260 * (1 - p)).toFixed(1)}px,0) rotateY(${(-540 * (1 - p)).toFixed(2)}deg) scale(${(0.55 + 0.45 * p).toFixed(4)})`;
+          it.slot.style.opacity = u < 0.1 ? Math.max(0.01, u / 0.1).toFixed(2) : '';   // 처음 0.09초 동안 나타남
+        }
+        if (!left) return res();
+        requestAnimationFrame(step);
+      };
+      requestAnimationFrame(step);
+    }).then(() => { if (id === enterRun) tidy(); });
   }
 
   /* ── 공개 ── */

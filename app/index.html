@@ -252,16 +252,13 @@
   .sheen.br{--sx:1362px;--sy:2362px;--sw:686px;--sh:370px;clip-path:polygon(0 100%,100% 100%,100% 0)}
   .sheen.br::before{animation-delay:2.4s}
   @keyframes sheenGo{0%{transform:translate(-3277px,-4371px) scale(10)}30%,100%{transform:translate(0px,0px) scale(10)}}
-  /* 카드 등장: 회전하며 날아와 앉음(reveal.js enter가 .entering과 --enter-delay를 붙인다).
-     브라우저 스크립트 애니메이션(element.animate)으로 돌리던 것을 CSS 애니메이션으로 바꿨다 — iPad에서 카드가 처음 그려지는 동안
-     화면 처리(메인 스레드)가 바빠도 CSS 변형 애니메이션은 합성 단계에서 따로 돌아 끊기지 않는다(11-11 실기기: 카드마다 0.2초씩 멈춤). */
+  /* 카드 등장(회전하며 날아와 앉음)은 reveal.js enter()가 매 프레임 카드 자세를 직접 넣는다(뒤집기와 같은 방식).
+     .preenter: 출발 전 대기(1% 투명도 — 눈에는 안 보이지만 미리 그려져 있다) · .entering: 등장 중(둥실 움직임을 끈다)
+     칸(.slot)은 항상 같은 층으로 남게 해 둔다(will-change): 투명도가 바뀌어도 층 구조가 달라지지 않는다. */
+  #slots .slot{will-change:opacity}
   #slots .slot.preenter{opacity:.01}
-  #slots .slot.entering{animation:cardIn .9s cubic-bezier(.2,.8,.2,1) var(--enter-delay,0s) both}
-  /* 시작 투명도는 0이 아니라 1%: 완전히 투명해지는 순간이 한 번도 없어야 한다.
-     iPad는 완전히 투명했던 카드가 보이기 시작할 때 그 카드를 다시 그리느라 0.2초쯤 멈췄다(카드 3장의 출발 0·0.2·0.4초마다 멈춤, 11-11 녹화 3건). */
-  @keyframes cardIn{0%{transform:translate3d(0,-260px,0) rotateY(-540deg) scale(.55);opacity:.01}10%{opacity:1}100%{transform:translate3d(0,0,0) rotateY(0deg) scale(1);opacity:1}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
-  #slots .slot:not(.revealing):not(.flipped) .card{animation:cardBob 3s ease-in-out infinite alternate}
+  #slots .slot:not(.revealing):not(.flipped):not(.entering):not(.preenter) .card{animation:cardBob 3s ease-in-out infinite alternate}
   #slots .s-l .card,#slots .s-2l .card{animation-delay:-1s}#slots .s-r .card,#slots .s-2r .card{animation-delay:-2s}
   @keyframes cardBob{from{transform:translateY(0)}to{transform:translateY(-22px)}}
   .front .win{position:absolute;left:11%;right:11%;top:16%;height:57%;clip-path:polygon(0 4%,40% 0,50% -10%,60% 0,100% 4%,100% 62%,50% 100%,0 62%);display:flex;align-items:center;justify-content:center}
@@ -472,7 +469,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v33'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v34'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
