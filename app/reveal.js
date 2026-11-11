@@ -250,7 +250,9 @@
     // 움직임 자체는 CSS(index.html의 .entering / @keyframes cardIn)가 한다 — iPad에서 화면 처리가 바빠도 끊기지 않게.
     const order = slots.length === 3 ? [1, 0, 2] : slots.map((_, i) => i);
     let lastEl = null, total = 0;
-    order.forEach((idx, n) => { const s = slots[idx]; s.style.setProperty('--enter-delay', (n * 0.2) + 's'); s.classList.add('entering'); s.classList.remove('preenter'); lastEl = s; total = 900 + n * 200; });
+    order.forEach((idx, n) => { const s = slots[idx]; s.style.setProperty('--enter-delay', (n * 0.2) + 's'); s.classList.add('entering'); s.classList.remove('preenter'); lastEl = s;
+      // 진단: 카드마다 실제로 움직이기 시작한 순간을 남긴다(멈춤이 카드 출발과 겹치는지 보려고)
+      s.addEventListener('animationstart', function on(e) { if (e.target !== s || e.animationName !== 'cardIn') return; s.removeEventListener('animationstart', on); if (typeof root.mark === 'function') root.mark('카드 ' + (n + 1) + ' 출발'); }); total = 900 + n * 200; });
     const ended = new Promise((res) => { if (!lastEl) return res(); const on = (e) => { if (e.target === lastEl && e.animationName === 'cardIn') { lastEl.removeEventListener('animationend', on); res(); } }; lastEl.addEventListener('animationend', on); });
     return Promise.race([ended, wait(total + 700)]).then(() => slots.forEach((s) => { s.classList.remove('entering'); s.style.removeProperty('--enter-delay'); }));
   }

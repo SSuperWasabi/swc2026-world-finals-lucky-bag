@@ -257,7 +257,9 @@
      화면 처리(메인 스레드)가 바빠도 CSS 변형 애니메이션은 합성 단계에서 따로 돌아 끊기지 않는다(11-11 실기기: 카드마다 0.2초씩 멈춤). */
   #slots .slot.preenter{opacity:.01}
   #slots .slot.entering{animation:cardIn .9s cubic-bezier(.2,.8,.2,1) var(--enter-delay,0s) both}
-  @keyframes cardIn{0%{transform:translate3d(0,-260px,0) rotateY(-540deg) scale(.55);opacity:0}10%{opacity:1}100%{transform:translate3d(0,0,0) rotateY(0deg) scale(1);opacity:1}}
+  /* 시작 투명도는 0이 아니라 1%: 완전히 투명해지는 순간이 한 번도 없어야 한다.
+     iPad는 완전히 투명했던 카드가 보이기 시작할 때 그 카드를 다시 그리느라 0.2초쯤 멈췄다(카드 3장의 출발 0·0.2·0.4초마다 멈춤, 11-11 녹화 3건). */
+  @keyframes cardIn{0%{transform:translate3d(0,-260px,0) rotateY(-540deg) scale(.55);opacity:.01}10%{opacity:1}100%{transform:translate3d(0,0,0) rotateY(0deg) scale(1);opacity:1}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
   #slots .slot:not(.revealing):not(.flipped) .card{animation:cardBob 3s ease-in-out infinite alternate}
   #slots .s-l .card,#slots .s-2l .card{animation-delay:-1s}#slots .s-r .card,#slots .s-2r .card{animation-delay:-2s}
@@ -470,7 +472,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v32'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v33'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
@@ -479,6 +481,7 @@ const stage = $('stage');
    화면을 그릴 차례가 60ms(약 4프레임) 넘게 밀리면 '멈춤'으로 적는다. 최근 80줄만 남긴다. */
 const diag = [];
 function mark(label) { diag.push([performance.now(), label]); if (diag.length > 80) diag.shift(); }
+window.mark = mark;   // reveal.js에서도 쓴다
 (function watchStalls() {
   let last = performance.now();
   const tick = (now) => { const dt = now - last; last = now; if (dt > 60 && dt < 5000 && !document.hidden) mark(`멈춤 ${Math.round(dt)}ms`); requestAnimationFrame(tick); };
