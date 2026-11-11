@@ -239,7 +239,7 @@
     if (f.dataset.type === type) return f.querySelector('video');
     f.dataset.type = type;
     f.innerHTML = `<video class="cf-vid" src="${a.vid}" poster="${a.poster}" muted loop playsinline preload="auto" disablepictureinpicture></video>` +
-      `<div class="cf-badge">${type}</div><div class="cf-name">LUCKY BAG ${type}</div><div class="cf-foil"></div><i class="cf-rim"></i>`;
+      `<div class="cf-badge">${type}</div><div class="cf-name">LUCKY BAG <b>${type}</b></div><div class="cf-foil"></div><i class="cf-rim"></i>`;
     return f.querySelector('video');
   }
   function playVid(v) { if (v) { try { v.currentTime = 0; } catch (e) { } v.play().catch(() => { }); } }

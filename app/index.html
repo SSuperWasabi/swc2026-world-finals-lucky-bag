@@ -193,11 +193,25 @@
   .front{transform:rotateY(180deg);visibility:hidden}
   /* 카드 앞면: 앞면 그림+캐릭터 루프 영상(카드 모양 마스크), 리본 글자·왼쪽 위 배지는 글자로 */
   .front .cf-vid{position:absolute;inset:0;width:100%;height:100%;object-fit:fill;-webkit-mask:url(assets/lb/card-front-a.png) center/100% 100%;mask:url(assets/lb/card-front-a.png) center/100% 100%}
+  /* 카드 앞면 글자(11-11 가독성 피드백 → 시안 '안 2', Resource/mockups/card-text):
+     리본은 "LUCKY BAG" + 진한 칩 안의 등급 글자, 방패 안 등급 글자는 1.3배.
+     카드마다 진한 색(--ink)과 밝은 색(--lite) 한 쌍을 쓴다. A는 흰 글자에 진한 테두리, B·C는 진한 글자에 밝은 테두리.
+     테두리는 16방향 그림자(--or 굵기, --oc 색)로 그린다 — 글자는 한 번만 그려지므로 부하가 없다. */
+  .slot{--ink:#24075c;--lite:#ffffff}
+  .slot[data-type="B"]{--ink:#4a1f00;--lite:#fff6d8}
+  .slot[data-type="C"]{--ink:#3a1088;--lite:#ffffff}
+  .front .cf-badge,.front .cf-name{--ring:calc(var(--or)*1.000) calc(var(--or)*0.000) 0 var(--oc),calc(var(--or)*0.924) calc(var(--or)*0.383) 0 var(--oc),calc(var(--or)*0.707) calc(var(--or)*0.707) 0 var(--oc),calc(var(--or)*0.383) calc(var(--or)*0.924) 0 var(--oc),calc(var(--or)*0.000) calc(var(--or)*1.000) 0 var(--oc),calc(var(--or)*-0.383) calc(var(--or)*0.924) 0 var(--oc),calc(var(--or)*-0.707) calc(var(--or)*0.707) 0 var(--oc),calc(var(--or)*-0.924) calc(var(--or)*0.383) 0 var(--oc),calc(var(--or)*-1.000) calc(var(--or)*0.000) 0 var(--oc),calc(var(--or)*-0.924) calc(var(--or)*-0.383) 0 var(--oc),calc(var(--or)*-0.707) calc(var(--or)*-0.707) 0 var(--oc),calc(var(--or)*-0.383) calc(var(--or)*-0.924) 0 var(--oc),calc(var(--or)*-0.000) calc(var(--or)*-1.000) 0 var(--oc),calc(var(--or)*0.383) calc(var(--or)*-0.924) 0 var(--oc),calc(var(--or)*0.707) calc(var(--or)*-0.707) 0 var(--oc),calc(var(--or)*0.924) calc(var(--or)*-0.383) 0 var(--oc)}
   /* 실측(카드 800×1206 기준): 배지 방패 안쪽 면 x45~165 · y48~178(시각 중심 107,113) / 리본 가운데 면 x110~690 · y905~1028 */
-  .front .cf-badge{position:absolute;left:5.6%;top:4%;width:15%;height:10.8%;display:flex;align-items:center;justify-content:center;line-height:1;font-family:Unb;font-weight:900;font-size:calc(var(--cw)*.095);color:#fff;text-shadow:0 2px 6px #0009}
-  .front .cf-name{position:absolute;left:13.75%;right:13.75%;top:75%;height:10.2%;display:flex;align-items:center;justify-content:center;line-height:1;white-space:nowrap;font-family:Unb;font-weight:850;font-size:calc(var(--cw)*.066);letter-spacing:.04em;color:#fff;text-shadow:0 2px 6px rgba(40,0,90,.75)}
-  .slot[data-type="C"] .front .cf-name,.slot[data-type="C"] .front .cf-badge{color:#4b1a9a;text-shadow:0 1px 0 #fff8}
-  .slot[data-type="B"] .front .cf-name{color:#5a2a00;text-shadow:0 1px 0 #fff6}
+  .front .cf-badge{position:absolute;left:5.6%;top:4%;width:15%;height:10.8%;display:flex;align-items:center;justify-content:center;line-height:1;font-family:Unb;font-weight:900;
+    font-size:calc(var(--cw)*.124);color:#fff;--or:calc(var(--cw)*.011);--oc:var(--ink);text-shadow:var(--ring),0 3px 0 rgba(0,0,0,.35)}
+  .slot[data-type="C"] .front .cf-badge{color:var(--ink);--or:calc(var(--cw)*.008);--oc:#fff;text-shadow:var(--ring)}
+  .front .cf-name{position:absolute;left:13.75%;right:13.75%;top:75%;height:10.2%;display:flex;align-items:center;justify-content:center;line-height:1;white-space:nowrap;font-family:Unb;font-weight:850;
+    font-size:calc(var(--cw)*.068);letter-spacing:.02em;gap:calc(var(--cw)*.026);color:var(--ink);--or:calc(var(--cw)*.0055);--oc:var(--lite);text-shadow:var(--ring)}
+  .slot[data-type="A"] .front .cf-name{color:#fff;--or:calc(var(--cw)*.009);--oc:var(--ink);text-shadow:var(--ring),0 3px 0 rgba(20,0,60,.5)}
+  /* 등급 칩: 진한 바탕에 흰 글자 + 밝은 테두리 */
+  .front .cf-name b{display:inline-flex;align-items:center;justify-content:center;width:calc(var(--cw)*.135);height:calc(var(--cw)*.135);border-radius:calc(var(--cw)*.03);
+    background:var(--ink);color:#fff;font-weight:900;font-size:calc(var(--cw)*.1);letter-spacing:0;text-shadow:none;
+    box-shadow:0 0 0 calc(var(--cw)*.008) var(--lite),0 3px 8px rgba(0,0,0,.35)}
   .front .cf-foil{position:absolute;inset:0;pointer-events:none;opacity:0;overflow:hidden;mix-blend-mode:screen;-webkit-mask:url(assets/lb/card-front-a.png) center/100% 100%;mask:url(assets/lb/card-front-a.png) center/100% 100%}
   /* 무지개 띠도 작은 조각을 4배로 늘려 위치 이동으로만 움직인다(다시 그리지 않음) */
   .front .cf-foil::before{content:"";position:absolute;left:0;top:0;width:75%;height:25%;transform-origin:0 0;transform:translateX(-293.33%) scale(4);
@@ -469,7 +483,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v34'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v35'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
