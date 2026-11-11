@@ -79,7 +79,7 @@
   @keyframes breathe{from{opacity:.55;transform:translateX(-50%) scaleX(.92)}to{opacity:1;transform:translateX(-50%) scaleX(1.06)}}
   /* 뒷면 광택: 카드 모양으로만 비치게 마스크 */
   /* 빛 띠는 작은 조각(1/4 크기)을 4배로 늘려 '위치 이동'으로만 움직인다 → 매 프레임 다시 그리지 않음(iPad 부하) */
-  .back .shine{position:absolute;inset:0;pointer-events:none;overflow:hidden;-webkit-mask:url(assets/lb/card-back.png) center/100% 100%;mask:url(assets/lb/card-back.png) center/100% 100%}
+  .back .shine{position:absolute;top:0;left:-1.9%;width:103.8%;height:100%;pointer-events:none;overflow:hidden;border-radius:calc(var(--cw)*.0895)}
   .back .shine::before{content:"";position:absolute;left:0;top:0;width:75%;height:25%;transform-origin:0 0;transform:translateX(-320%) scale(4);
     background:linear-gradient(115deg,transparent 35%,rgba(255,255,255,.0) 40%,rgba(255,255,255,.55) 48%,rgba(255,240,255,.15) 54%,transparent 62%) no-repeat;
     animation:shine 4.2s ease-in-out infinite}
@@ -181,10 +181,13 @@
   .face img.frameimg{position:absolute;top:0;left:-1.9%;width:103.8%;height:100%;max-width:none}  /* 새 뒷면은 가로가 3.8% 넓은 비율 → 가운데 맞춤(변형 없이 위치로만) */
   /* 카드 둘레 빛: 흐림 필터(drop-shadow) 대신 카드 뒤에 깔린 그림자 한 장으로 그린다.
      필터는 카드 안 영상·광택이 움직일 때마다 다시 계산돼 iPad에서 뒤집기가 멈출 만큼 무거웠다(11-10 실기기). */
-  .back::before,.front::before,.back .pulse{content:"";position:absolute;inset:1% -1%;border-radius:calc(var(--cw)*.06);pointer-events:none}
-  .back::before{box-shadow:0 0 34px 6px rgba(255,200,110,.6)}
-  .front::before{inset:1% 0;box-shadow:0 0 38px 8px var(--acc)}
-  .back .pulse{opacity:0;box-shadow:0 0 60px 16px #ffe2a8}
+  /* 번짐은 원래 흐릿해서, 1/4 크기 조각을 4배로 늘려도 같아 보인다. 큰 흐림 그림자를 처음 그리는 비용은 1/16로 준다
+     (카드가 등장할 때 이 그림자들을 처음 그리느라 화면이 멈췄다). 아래 수치는 모두 '보이는 크기의 1/4'이다. */
+  .back::before,.front::before,.back .pulse{content:"";position:absolute;left:37.25%;top:37.75%;width:25.5%;height:24.5%;transform:scale(4);will-change:transform;
+    border-radius:calc(var(--cw)*.015);pointer-events:none}
+  .back::before{box-shadow:0 0 8.5px 1.5px rgba(255,200,110,.6)}
+  .front::before{left:37.5%;width:25%;box-shadow:0 0 9.5px 2px var(--acc)}
+  .back .pulse{opacity:0;box-shadow:0 0 15px 4px #ffe2a8}
   .back .emb{position:absolute;left:50%;top:44%;width:38%;transform:translate(-50%,-50%)}
   .back .lb{position:absolute;left:0;right:0;top:56%;text-align:center;font-family:Unb;font-weight:800;font-size:calc(var(--cw)*.062);letter-spacing:.14em;text-shadow:0 0 16px #c9a2ff}
   .front{transform:rotateY(180deg);visibility:hidden}
@@ -202,12 +205,12 @@
   /* ── 뒤집기 빛 3가지: 수정안 미리보기(Resource/mockups/snap-preview)와 같은 모양·비율. 투명도만 reveal.js가 매 프레임 바꾼다 ──
      미리보기는 카드 폭 206px 기준 → 여기서는 카드 폭(--cw)에 대한 비율로 적는다 */
   /* 옆면일 때의 가는 빛기둥: 폭 6/206, 카드 위로 11.7%·아래로 4% 더 뻗음. 카드 뒤에 깔린다(카드와 함께 돌지 않음) */
-  .pillar{position:absolute;left:50%;top:calc(var(--cw)*-.176);bottom:calc(var(--cw)*-.06);width:calc(var(--cw)*.0291);margin-left:calc(var(--cw)*-.01455);
-    border-radius:calc(var(--cw)*.0146);background:#fffbea;opacity:0;pointer-events:none;will-change:opacity;
-    box-shadow:0 0 calc(var(--cw)*.068) calc(var(--cw)*.0291) rgba(255,220,150,.9),0 0 calc(var(--cw)*.2233) calc(var(--cw)*.0777) rgba(255,190,90,.55)}
+  .pillar{position:absolute;left:50%;top:calc(var(--cw)*.475);height:calc(var(--cw)*.434);width:calc(var(--cw)*.007275);margin-left:calc(var(--cw)*-.0036375);transform:scale(4);
+    border-radius:calc(var(--cw)*.00365);background:#fffbea;opacity:0;pointer-events:none;will-change:opacity;
+    box-shadow:0 0 calc(var(--cw)*.017) calc(var(--cw)*.007275) rgba(255,220,150,.9),0 0 calc(var(--cw)*.0558) calc(var(--cw)*.0194) rgba(255,190,90,.55)}
   /* 카드 둘레 금빛: 카드 안에 있어 카드와 함께 돈다(빌드업 때 차오르고, 넘어가는 동안 다시 켜짐) */
-  .card .cglow{position:absolute;inset:.6% -1%;border-radius:calc(var(--cw)*.06);opacity:0;pointer-events:none;will-change:opacity;
-    box-shadow:0 0 calc(var(--cw)*.107) calc(var(--cw)*.012) rgba(255,205,110,1),0 0 calc(var(--cw)*.03) rgba(255,236,190,.9)}
+  .card .cglow{position:absolute;left:37.25%;top:37.65%;width:25.5%;height:24.7%;transform:scale(4);border-radius:calc(var(--cw)*.015);opacity:0;pointer-events:none;will-change:opacity;
+    box-shadow:0 0 calc(var(--cw)*.02675) calc(var(--cw)*.003) rgba(255,205,110,1),0 0 calc(var(--cw)*.0075) rgba(255,236,190,.9)}
   /* 넘어가는 동안 앞면이 밝아짐(미리보기의 밝기 올림을 밝은 덮개로 대신) */
   .front .cf-rim{position:absolute;inset:0;border-radius:calc(var(--cw)*.06);pointer-events:none;opacity:0;will-change:opacity;background:#fff3d6}
   .slot.foil .cf-foil{animation:foilFade 1.05s ease-in-out both}
@@ -249,6 +252,11 @@
   .sheen.br{--sx:1362px;--sy:2362px;--sw:686px;--sh:370px;clip-path:polygon(0 100%,100% 100%,100% 0)}
   .sheen.br::before{animation-delay:2.4s}
   @keyframes sheenGo{0%{transform:translate(-3277px,-4371px) scale(10)}30%,100%{transform:translate(0px,0px) scale(10)}}
+  /* 카드 등장: 회전하며 날아와 앉음(reveal.js enter가 .entering과 --enter-delay를 붙인다).
+     브라우저 스크립트 애니메이션(element.animate)으로 돌리던 것을 CSS 애니메이션으로 바꿨다 — iPad에서 카드가 처음 그려지는 동안
+     화면 처리(메인 스레드)가 바빠도 CSS 변형 애니메이션은 합성 단계에서 따로 돌아 끊기지 않는다(11-11 실기기: 카드마다 0.2초씩 멈춤). */
+  #slots .slot.entering{animation:cardIn .9s cubic-bezier(.2,.8,.2,1) var(--enter-delay,0s) both}
+  @keyframes cardIn{0%{transform:translate3d(0,-260px,0) rotateY(-540deg) scale(.55);opacity:0}10%{opacity:1}100%{transform:translate3d(0,0,0) rotateY(0deg) scale(1);opacity:1}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
   #slots .slot:not(.revealing):not(.flipped) .card{animation:cardBob 3s ease-in-out infinite alternate}
   #slots .s-l .card,#slots .s-2l .card{animation-delay:-1s}#slots .s-r .card,#slots .s-2r .card{animation-delay:-2s}
@@ -461,7 +469,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v30'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v31'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
@@ -717,11 +725,10 @@ function renderDraw(fresh) {
   $('dBar').innerHTML = ''; $('dBar').dataset.html = '';
   go('scr-draw');
   if (fresh || c.revealed.length === 0) {
-    // 카드 등장은 전환 영상이 걷힐 때 시작한다. 그동안 카드는 숨겨 둔다.
+    // 카드 등장은 전환 영상이 걷힐 때 시작한다. 그동안 카드는 전환 영상에 완전히 가려져 있으므로 숨기지 않는다:
+    // 가려진 사이에 카드 그림·빛 번짐이 미리 그려져서, 걷힌 뒤 등장 동작이 멈추지 않는다(숨겨 두면 등장하는 순간 처음 그리느라 끊김).
     busy = true; updateDraw();
-    slots.forEach((s) => { s.style.visibility = 'hidden'; });
     screenTransition.afterReveal(() => {
-      slots.forEach((s) => { s.style.visibility = ''; });
       runAnim(() => Reveal.enter(slots), 3000).then(() => { busy = false; updateDraw(); });
     });
   } else { busy = false; updateDraw(); }

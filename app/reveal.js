@@ -247,10 +247,12 @@
   /* ── 등장: 가운데 → 왼쪽 → 오른쪽 순서로 회전하며 날아와 앉음 ── */
   function enter(slots) {
     if (reduced()) return Promise.resolve();
+    // 움직임 자체는 CSS(index.html의 .entering / @keyframes cardIn)가 한다 — iPad에서 화면 처리가 바빠도 끊기지 않게.
     const order = slots.length === 3 ? [1, 0, 2] : slots.map((_, i) => i);
-    return Promise.all(order.map((idx, n) => settle(slots[idx].animate(
-      [{ transform: 'translate3d(0,-260px,0) rotateY(-540deg) scale(.55)', opacity: 0 }, { opacity: 1, offset: 0.35 }, { transform: 'none', opacity: 1 }],
-      { duration: 900, delay: n * 200, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' }), 900 + n * 200 + 400)));
+    let lastEl = null, total = 0;
+    order.forEach((idx, n) => { const s = slots[idx]; s.style.setProperty('--enter-delay', (n * 0.2) + 's'); s.classList.add('entering'); lastEl = s; total = 900 + n * 200; });
+    const ended = new Promise((res) => { if (!lastEl) return res(); const on = (e) => { if (e.target === lastEl && e.animationName === 'cardIn') { lastEl.removeEventListener('animationend', on); res(); } }; lastEl.addEventListener('animationend', on); });
+    return Promise.race([ended, wait(total + 700)]).then(() => slots.forEach((s) => { s.classList.remove('entering'); s.style.removeProperty('--enter-delay'); }));
   }
 
   /* ── 공개 ── */
