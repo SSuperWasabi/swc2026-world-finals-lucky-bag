@@ -483,7 +483,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v36'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v37'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
@@ -1057,7 +1057,20 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   // 새 버전이 받아지면 새로 고침. 구매 진행 중이면 미뤘다가 대기 화면으로 돌아왔을 때 한다(예전 화면이 계속 남지 않게)
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!hadController || refreshing) return; if (busy || store.state.current) { pendingReload = true; return; } reloadNow(); });
   setInterval(() => { if (pendingReload && !busy && !store.state.current && $('scr-idle').classList.contains('on')) reloadNow(); }, 1500);
-  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
+  /* 새 버전을 받는 동안 첫 화면 아래 버전 글자 옆에 진행 상황을 보여 준다(다 받으면 스스로 새로 고침).
+     달라진 파일만 받으므로 보통 몇 초면 끝난다. 받는 도중 앱을 닫아도 다음에 이어서 받는다. */
+  let swTold = false;
+  navigator.serviceWorker.addEventListener('message', (e) => {
+    const d = e.data || {};
+    if (d.type === 'sw-progress') {
+      if (!swTold) { swTold = true; mark(hadController ? '새 버전 받기 시작' : '오프라인 준비 시작'); }
+      $('idleVer').textContent = `${APP_VER} · ${hadController ? '새 버전 받는 중' : '오프라인 준비 중'} ${d.done}/${d.total}`;
+    } else if (d.type === 'sw-installed') {
+      mark(`${hadController ? '새 버전' : '오프라인 준비'} 완료: 그대로 씀 ${d.reused} · 내려받음 ${d.fetched}(${(d.bytes / 1048576).toFixed(1)}MB)`);
+      $('idleVer').textContent = APP_VER;
+    }
+  });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch((err) => { mark('오프라인 저장 등록 실패: ' + (err && err.message)); });
 }
 window.__app = { store, APP_VER, diag, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */
 </script>
