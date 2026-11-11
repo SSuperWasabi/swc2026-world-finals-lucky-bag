@@ -255,6 +255,7 @@
   /* 카드 등장: 회전하며 날아와 앉음(reveal.js enter가 .entering과 --enter-delay를 붙인다).
      브라우저 스크립트 애니메이션(element.animate)으로 돌리던 것을 CSS 애니메이션으로 바꿨다 — iPad에서 카드가 처음 그려지는 동안
      화면 처리(메인 스레드)가 바빠도 CSS 변형 애니메이션은 합성 단계에서 따로 돌아 끊기지 않는다(11-11 실기기: 카드마다 0.2초씩 멈춤). */
+  #slots .slot.preenter{opacity:.01}
   #slots .slot.entering{animation:cardIn .9s cubic-bezier(.2,.8,.2,1) var(--enter-delay,0s) both}
   @keyframes cardIn{0%{transform:translate3d(0,-260px,0) rotateY(-540deg) scale(.55);opacity:0}10%{opacity:1}100%{transform:translate3d(0,0,0) rotateY(0deg) scale(1);opacity:1}}
   /* 뒷면 대기: 둥실 + 빛 숨쉬기(누를 수 있을 때) */
@@ -469,10 +470,21 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v31'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v32'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
+/* ── 진단: 화면이 멈춘 순간과 화면 흐름을 기록한다(관리자 → 백업 맨 아래에서 본다) ──
+   iPad에서만 생기는 끊김은 PC에서 재현되지 않아, 기기가 스스로 '언제 얼마나 멈췄는지'를 남기게 했다.
+   화면을 그릴 차례가 60ms(약 4프레임) 넘게 밀리면 '멈춤'으로 적는다. 최근 80줄만 남긴다. */
+const diag = [];
+function mark(label) { diag.push([performance.now(), label]); if (diag.length > 80) diag.shift(); }
+(function watchStalls() {
+  let last = performance.now();
+  const tick = (now) => { const dt = now - last; last = now; if (dt > 60 && dt < 5000 && !document.hidden) mark(`멈춤 ${Math.round(dt)}ms`); requestAnimationFrame(tick); };
+  requestAnimationFrame(tick);
+  document.addEventListener('visibilitychange', () => { last = performance.now(); });
+})();
 // 저장소 접근이 막힌 설정(사이트 데이터 차단 등)이어도 앱은 뜨게 하고 직원에게 알린다.
 let storageBlocked = false;
 const storage = (() => {
@@ -538,7 +550,7 @@ document.querySelectorAll('.dust').forEach((d) => {
   }
 });
 function go(id) {
-  guard();
+  guard(); mark('화면 ' + id.replace('scr-', ''));
   if (id !== 'scr-draw') { $('scr-draw').classList.remove('spot'); freeVideos($('slots')); }
   // 1번·3번은 AE 영상이 배경·로고·타이틀을 그린다 → 공통 배경 숨김
   stage.classList.toggle('vidbg', id === 'scr-idle' || id === 'scr-staff' || id === 'scr-draw');
@@ -588,8 +600,25 @@ const POS = { 1: ['s-m'], 2: ['s-2l', 's-2r'], 3: ['s-l', 's-m', 's-r'] };
 /* ── 대기 ── */
 /* ── 화면 전환 영상: 화면이 완전히 가려진 순간 화면을 바꾸고, 걷힐 때 다음 화면 모션을 시작 ── */
 const screenTransition = new ScreenTransition($('transition-matte'), $('transition-colour'), $('transition-shield'));
+screenTransition.onMark = (label) => mark(label);   // 전환이 끝날 때 정리에 걸린 시간을 진단 기록에 남긴다
 if (screenTransition.available) screenTransition.warm();
-function withTransition(fn) { if (!document.hidden) screenTransition.run(fn); else fn(); }
+function withTransition(fn) { if (!document.hidden) { mark('전환 시작'); screenTransition.run(fn); screenTransition.afterReveal(() => mark('전환 걷히기 시작')); } else fn(); }
+/* 전환 영상이 완전히 끝나고(끝날 때 하는 정리 작업 포함) 화면이 다시 안정적으로 그려지기 시작한 뒤에 cb를 부른다.
+   전환이 걷히는 도중·끝나는 순간에는 iPad의 화면 처리가 바빠서, 그때 시작한 움직임은 앞부분이 잘려 보였다(11-11 실기기: 카드 등장). */
+function whenSettled(cb) {
+  const t0 = performance.now(); let waited = false, marked = false, calm = 0, last = 0;
+  const poll = (now) => {
+    const over = performance.now() - t0 > 3000;   // 무슨 일이 있어도 3초 안에는 진행
+    if (screenTransition.busy && !over) { waited = true; calm = 0; last = now; return requestAnimationFrame(poll); }
+    if (waited && !marked) { marked = true; mark('전환 끝'); }
+    // 화면이 3번 연속 제때(40ms 안) 그려질 때까지 기다린다 — 정리 작업으로 멈춰 있는 동안에는 시작하지 않는다
+    if (last && now - last < 40) calm++; else calm = 0;
+    last = now;
+    if (calm >= 3 || over) return cb();
+    requestAnimationFrame(poll);
+  };
+  requestAnimationFrame(poll);
+}
 
 /* ── 1번 메인 대기 화면: AE(OAP 06_Match Up 가공) 영상. 들어올 때 인트로 1번 → 10초 루프 반복 ── */
 const mvIntro = $('mvIntro'), mvLoop = $('mvLoop');
@@ -725,11 +754,13 @@ function renderDraw(fresh) {
   $('dBar').innerHTML = ''; $('dBar').dataset.html = '';
   go('scr-draw');
   if (fresh || c.revealed.length === 0) {
-    // 카드 등장은 전환 영상이 걷힐 때 시작한다. 그동안 카드는 전환 영상에 완전히 가려져 있으므로 숨기지 않는다:
-    // 가려진 사이에 카드 그림·빛 번짐이 미리 그려져서, 걷힌 뒤 등장 동작이 멈추지 않는다(숨겨 두면 등장하는 순간 처음 그리느라 끊김).
+    // 카드 등장은 전환 영상이 '완전히 끝난 뒤' 시작한다(whenSettled). 그동안 카드는 1% 투명도로 놓아 둔다(.preenter):
+    // 눈에는 안 보이지만 카드 그림·빛 번짐이 미리 그려져서, 등장 동작이 시작될 때 처음 그리느라 멈추지 않는다.
     busy = true; updateDraw();
-    screenTransition.afterReveal(() => {
-      runAnim(() => Reveal.enter(slots), 3000).then(() => { busy = false; updateDraw(); });
+    slots.forEach((s) => s.classList.add('preenter'));
+    whenSettled(() => {
+      mark('카드 등장 시작');
+      runAnim(() => Reveal.enter(slots), 3000).then(() => { slots.forEach((s) => s.classList.remove('preenter', 'entering')); mark('카드 등장 끝'); busy = false; updateDraw(); });
     });
   } else { busy = false; updateDraw(); }
 }
@@ -776,7 +807,7 @@ function updateDraw() {
 let pending = [], flipStartAt = 0, runId = 0;
 const flipDone = (p) => p.slot.classList.contains('flipped') && !p.slot.classList.contains('revealing');
 function endRun(id) {
-  if (id !== runId) return; runId++;
+  if (id !== runId) return; runId++; mark('뒤집기 끝');
   pending.splice(0).forEach((p) => { ensureShown(p.slot, p.type); animating.delete(p.i); });
   busy = false; updateDraw();
 }
@@ -787,6 +818,7 @@ function skipNext() {
   if (pending.every(flipDone)) endRun(runId); else updateDraw();
 }
 function startRun(items, maxMs, play) {
+  mark(`뒤집기 시작(${items.length}장)`);
   pending = items; flipStartAt = performance.now();
   const id = ++runId;
   runAnim(play, maxMs).then(() => endRun(id));
@@ -960,7 +992,10 @@ function paneBackup() {
     `<div class="row"><div>백업 가져오기<em>현재 데이터를 모두 덮어써요</em></div><label class="act line">파일 선택<input type="file" id="bkIn" accept=".json,application/json" hidden></label></div>` +
     `<div class="row"><div>전체 초기화<em>재고를 A·B·C 각 100으로, 기록을 모두 지움</em></div><button class="act danger" id="bkReset">초기화</button></div>` +
     // 화면 크기: iPad Pro 12.9형이면 2048×2732로 나와야 한다(1024×1366이면 화면 폭 고정이 안 먹은 것 → 메모리 4배)
-    `<div class="ver">앱 버전 <b>${APP_VER}</b> · 화면 ${innerWidth}×${innerHeight} · 배율 ${devicePixelRatio}</div>`;
+    `<div class="ver">앱 버전 <b>${APP_VER}</b> · 화면 ${innerWidth}×${innerHeight} · 배율 ${devicePixelRatio}</div>` +
+    // 진단 기록: 왼쪽 숫자는 앱을 켠 뒤 지난 시간(초). '멈춤'이 어느 줄 사이에 있는지로 끊기는 곳을 찾는다
+    `<div class="note" style="margin-top:40px">진단 기록(최근 ${diag.length}줄) — 끊김이 보인 직후 이 화면을 캡처해 보내 주세요</div>` +
+    `<div id="diagBox" style="font-family:ui-monospace,Menlo,monospace;font-size:30px;line-height:1.45;color:#e6dcff;white-space:pre-wrap">${diag.map(([t, l]) => `${(t / 1000).toFixed(2).padStart(7)}s  ${l}`).join('\n')}</div>`;
   $('bkOut').onclick = () => saveFile(`luckybag-backup-${stamp()}.json`, store.exportBackup(), 'application/json');
   $('bkIn').onchange = async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
@@ -1010,7 +1045,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   setInterval(() => { if (pendingReload && !busy && !store.state.current && $('scr-idle').classList.contains('on')) reloadNow(); }, 1500);
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
 }
-window.__app = { store, APP_VER, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */
+window.__app = { store, APP_VER, diag, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */
 </script>
 </body>
 </html>

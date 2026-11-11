@@ -56,10 +56,15 @@ class ScreenTransition {
       if (done) return; done = true;
       cover(); reveal();
       clearTimeout(watchdog);
+      const t1 = performance.now();
       this.show(false);
+      const t2 = performance.now();
       // Rewind now so the next transition starts without a seek.
       this.rewind();
+      const t3 = performance.now();
       this.busy = false;
+      // 진단용(iPad에서 전환이 끝난 직후 화면이 0.4초쯤 멈추는 원인 추적): 숨기기·되감기에 걸린 시간
+      if (this.onMark) { try { this.onMark(`전환 정리: 숨김 ${Math.round(t2 - t1)}ms · 되감기 ${Math.round(t3 - t2)}ms`); } catch (e) { /* 진단은 실패해도 무시 */ } }
     };
     // Never trap the kiosk: a stalled clip still completes the navigation.
     const watchdog = setTimeout(finish, 4000);
