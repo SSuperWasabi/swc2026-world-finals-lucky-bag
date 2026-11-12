@@ -145,12 +145,15 @@
   @keyframes rbScaleX{from{transform:scaleX(0);opacity:.2}to{transform:none;opacity:1}}
   @keyframes rbPop{from{opacity:0;transform:scale(1.35)}to{opacity:1;transform:none}}
   /* 화면 전환 영상(기존 럭키드로우 앱 그대로): 매트는 곱하기, 색은 더하기로 합성 */
-  .screen-transition-layer{position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh;object-fit:cover;pointer-events:none;visibility:hidden;z-index:4000}
+  /* 전환 층은 무대 안에 둔다 → 무대와 똑같은 자리·크기(v37까지는 화면 기준이라 iPad에서 아래 48px이 비었다) */
+  .screen-transition-layer{position:absolute;left:0;top:0;width:100%;height:100%;object-fit:cover;pointer-events:none;visibility:hidden;z-index:4000}
   .screen-transition-layer.is-active{visibility:visible}
   .screen-transition-layer.is-matte{mix-blend-mode:multiply}
   .screen-transition-layer.is-colour{z-index:4001;mix-blend-mode:screen}
   @supports (mix-blend-mode:plus-lighter){.screen-transition-layer.is-colour{mix-blend-mode:plus-lighter}}
-  #transition-shield{position:fixed;inset:0;z-index:4002;display:none}
+  /* 직접 합성용 영상: 화면에는 안 보이게 아주 작게만 둔다(그림은 캔버스가 그린다) */
+  #transition-stack{position:absolute;left:0;top:0;width:8px;height:8px;opacity:.01;pointer-events:none;z-index:3999}
+  #transition-shield{position:absolute;inset:0;z-index:4002;display:none}
   #transition-shield.is-active{display:block}
   #tapzone{position:absolute;right:0;top:0;width:300px;height:260px;z-index:50}
   /* 화면 */
@@ -471,11 +474,15 @@
   <div id="tapzone"></div>
   <div id="modal"><div class="box"><p id="mText"></p><div class="btns"><button class="act line" id="mNo">아니요</button><button class="act" id="mYes">예</button></div></div></div>
   <div id="toast"></div>
-</div>
 
-<video id="transition-matte" class="screen-transition-layer is-matte" src="assets/transition/transition-matte.mp4" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
-<video id="transition-colour" class="screen-transition-layer is-colour" src="assets/transition/transition-color.mp4" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
-<div id="transition-shield" aria-hidden="true"></div>
+  <!-- 화면 전환. 기본: 영상 1개(위 = 색, 아래 = 가림)를 캔버스가 직접 합성. 예비: 영상 2개를 브라우저가 겹침(transition.js 설명 참고).
+       영상 주소는 data-src에 두고, 쓰는 방식의 영상만 올린다. -->
+  <canvas id="transition-canvas" class="screen-transition-layer" width="768" height="1024" aria-hidden="true"></canvas>
+  <video id="transition-stack" data-src="assets/transition/transition-stack.mp4" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
+  <video id="transition-matte" class="screen-transition-layer is-matte" data-src="assets/transition/transition-matte.mp4" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
+  <video id="transition-colour" class="screen-transition-layer is-colour" data-src="assets/transition/transition-color.mp4" muted playsinline preload="auto" disablepictureinpicture aria-hidden="true"></video>
+  <div id="transition-shield" aria-hidden="true"></div>
+</div>
 
 <script src="transition.js"></script>
 <script src="bag-engine.js"></script>
@@ -483,7 +490,7 @@
 <script src="reveal.js"></script>
 <script>
 'use strict';
-const APP_VER = 'swc-lb-v37'; /* sw.js CACHE와 함께 올림 */
+const APP_VER = 'swc-lb-v38'; /* sw.js CACHE와 함께 올림 */
 const $ = (id) => document.getElementById(id);
 $('idleVer').textContent = APP_VER;
 const stage = $('stage');
@@ -528,16 +535,42 @@ function ensureShown(slot, type) {
 /* iPad는 같은 화면인데도 높이를 두 가지(상태 막대 24pt 차이)로 번갈아 알려 주는 때가 있다.
    v29는 그때마다 무대 크기를 다시 맞춰서 첫 화면이 매 프레임 1.7%씩 커졌다 작아졌다 했다(11-11 실기기 녹화).
    → 폭이 그대로이고 배율이 3% 안에서 '커지는' 변화는 무시하고 작은 쪽에 머문다. 회전·창 크기 변경처럼 큰 변화만 다시 맞춘다. */
-let fitS = 0, fitW = 0;
-function fit() {
-  const w = innerWidth, h = innerHeight;
-  if (!w || !h) return;
+/* 이 기기의 화면 표시 설정(관리자 → 백업에서 켜고 끈다). 재고·기록과 따로 저장해서 백업·초기화에 섞이지 않는다.
+   fill = 화면 꽉 채우기(아래 띠 없애기), gl = 전환을 앱이 직접 합성. 둘 다 기본은 켜짐이고, 현장에서 이상하면 끄면 v37 동작으로 돌아간다. */
+const DISPLAY_KEY = 'swc2026-world-finals-lucky-bag.display.v1';
+const display = (() => {
+  let d = {};
+  try { d = JSON.parse(storage.getItem(DISPLAY_KEY) || '{}') || {}; } catch (e) { d = {}; }
+  return { fill: d.fill !== false, gl: d.gl !== false };
+})();
+function setDisplay(key, val) { display[key] = val; try { storage.setItem(DISPLAY_KEY, JSON.stringify(display)); } catch (e) { /* 저장이 막혀 있으면 이번 실행에만 적용 */ } }
+const STANDALONE = navigator.standalone === true || (window.matchMedia && matchMedia('(display-mode: standalone)').matches);
+/* 홈 화면 앱(iPad)은 화면이 상태 막대 밑까지 이어지는데도 높이를 상태 막대만큼(24pt = 무대 48px) 짧게 알려 준다.
+   그 높이에 맞추면 무대가 1.8% 줄고 화면 아래에 48px 띠가 남는다(11-11 실기기 녹화).
+   → 세로로 든 홈 화면 앱이고 차이가 4% 안이면, 기기 화면 크기(screen)로 계산한 진짜 높이를 돌려준다. 아니면 0. */
+function fullHeight(w, h, sw, sh, standalone) {
+  if (!standalone || !w || !h || !sw || !sh || w > h) return 0;
+  const full = Math.round(Math.max(sw, sh) * w / Math.min(sw, sh));
+  return full > h && full - h <= h * 0.04 ? full : 0;
+}
+let fitS = 0, fitW = 0, fitH = 0;
+function fit(force) {
+  const w = innerWidth, ih = innerHeight;
+  if (!w || !ih) return;
+  const h = (display.fill && fullHeight(w, ih, screen.width, screen.height, STANDALONE)) || ih;
   const s = Math.min(w / 2048, h / 2732);
-  if (fitS && Math.abs(w - fitW) < fitW * 0.03 && s >= fitS && s < fitS * 1.03) return;
-  fitS = s; fitW = w;
+  if (force !== true && fitS && Math.abs(w - fitW) < fitW * 0.03 && s >= fitS && s < fitS * 1.03) return;
+  fitS = s; fitW = w; fitH = h;
+  // 문서 높이도 같이 늘려 둔다(늘린 만큼이 화면 밖으로 취급돼 잘리지 않게)
+  document.documentElement.style.height = h > ih ? h + 'px' : '';
   stage.style.transform = `translate(${(w - 2048 * s) / 2}px,${(h - 2732 * s) / 2}px) scale(${s})`;
 }
-addEventListener('resize', fit); fit();
+addEventListener('resize', () => fit()); fit();
+mark(`화면 ${innerWidth}×${innerHeight} · 기기 ${screen.width}×${screen.height} · 홈 화면 앱 ${STANDALONE ? '예' : '아니오'} · 무대 높이 ${fitH}`);
+// 문서가 화면보다 길어졌으므로 혹시라도 밀려 올라가면 제자리로(글자를 넣는 중에는 키보드 때문에 움직이는 것이라 둔다)
+const typing = () => { const a = document.activeElement; return !!a && /^(INPUT|TEXTAREA)$/.test(a.tagName); };
+addEventListener('scroll', () => { if ((scrollX || scrollY) && !typing()) scrollTo(0, 0); });
+document.addEventListener('focusout', () => setTimeout(() => { if (!typing()) scrollTo(0, 0); }, 0));
 // iPad는 처음 뜰 때·회전 직후 화면 크기를 늦게 알려 주는 일이 있어 한 번 더 맞춘다
 addEventListener('orientationchange', () => setTimeout(fit, 300));
 setTimeout(fit, 400);
@@ -613,8 +646,11 @@ const POS = { 1: ['s-m'], 2: ['s-2l', 's-2r'], 3: ['s-l', 's-m', 's-r'] };
 
 /* ── 대기 ── */
 /* ── 화면 전환 영상: 화면이 완전히 가려진 순간 화면을 바꾸고, 걷힐 때 다음 화면 모션을 시작 ── */
-const screenTransition = new ScreenTransition($('transition-matte'), $('transition-colour'), $('transition-shield'));
-screenTransition.onMark = (label) => mark(label);   // 전환이 끝날 때 정리에 걸린 시간을 진단 기록에 남긴다
+const screenTransition = new ScreenTransition($('transition-matte'), $('transition-colour'), $('transition-shield'),
+  { stack: $('transition-stack'), canvas: $('transition-canvas'), mode: display.gl ? 'gl' : 'css' });
+screenTransition.onMark = (label) => mark(label);   // 전환 방식과, 전환이 끝날 때 정리에 걸린 시간을 진단 기록에 남긴다
+const transitionModeText = () => (screenTransition.mode === 'gl' ? '직접 합성' : '예비' + (display.gl && screenTransition.glError ? `(${screenTransition.glError})` : ''));
+mark('전환 방식: ' + transitionModeText());
 if (screenTransition.available) screenTransition.warm();
 function withTransition(fn) { if (!document.hidden) { mark('전환 시작'); screenTransition.run(fn); screenTransition.afterReveal(() => mark('전환 걷히기 시작')); } else fn(); }
 /* 전환 영상이 완전히 끝나고(끝날 때 하는 정리 작업 포함) 화면이 다시 안정적으로 그려지기 시작한 뒤에 cb를 부른다.
@@ -1005,11 +1041,25 @@ function paneBackup() {
     `<div class="row"><div>백업 내보내기<em>설정·재고·기록 전체를 파일 1개로</em></div><button class="act" id="bkOut">내보내기</button></div>` +
     `<div class="row"><div>백업 가져오기<em>현재 데이터를 모두 덮어써요</em></div><label class="act line">파일 선택<input type="file" id="bkIn" accept=".json,application/json" hidden></label></div>` +
     `<div class="row"><div>전체 초기화<em>재고를 A·B·C 각 100으로, 기록을 모두 지움</em></div><button class="act danger" id="bkReset">초기화</button></div>` +
-    // 화면 크기: iPad Pro 12.9형이면 2048×2732로 나와야 한다(1024×1366이면 화면 폭 고정이 안 먹은 것 → 메모리 4배)
-    `<div class="ver">앱 버전 <b>${APP_VER}</b> · 화면 ${innerWidth}×${innerHeight} · 배율 ${devicePixelRatio}</div>` +
+    // 화면 표시 스위치(이 기기에만 저장). 문제가 보이면 끄면 v37 때 동작으로 돌아간다
+    `<div class="row"><div>화면 꽉 채우기<em>화면 아래 어두운 띠 없애기 · 화면이 잘려 보이면 끄기</em></div>${sw('fill', [[false, '끄기'], [true, '켜기']], display.fill)}</div>` +
+    `<div class="row"><div>전환 새 방식<em>전환 때 검은 화면 없애기 · 전환이 이상하면 끄기</em></div>${sw('gl', [[false, '끄기'], [true, '켜기']], display.gl)}</div>` +
+    // 화면 크기: iPad Pro 12.9형이면 폭이 2048로 나와야 한다(1024면 화면 폭 고정이 안 먹은 것 → 메모리 4배)
+    `<div class="ver">앱 버전 <b>${APP_VER}</b> · 화면 ${innerWidth}×${innerHeight} · 무대 높이 ${fitH} · 배율 ${devicePixelRatio} · 전환 ${transitionModeText()}</div>` +
     // 진단 기록: 왼쪽 숫자는 앱을 켠 뒤 지난 시간(초). '멈춤'이 어느 줄 사이에 있는지로 끊기는 곳을 찾는다
     `<div class="note" style="margin-top:40px">진단 기록(최근 ${diag.length}줄) — 끊김이 보인 직후 이 화면을 캡처해 보내 주세요</div>` +
     `<div id="diagBox" style="font-family:ui-monospace,Menlo,monospace;font-size:30px;line-height:1.45;color:#e6dcff;white-space:pre-wrap">${diag.map(([t, l]) => `${(t / 1000).toFixed(2).padStart(7)}s  ${l}`).join('\n')}</div>`;
+  $('admPane').querySelectorAll('.sw').forEach((el) => el.addEventListener('click', (e) => {
+    const v = e.target.dataset.v; if (v === undefined) return;
+    const key = el.dataset.key, val = v === 'true';
+    if (display[key] === val) return;
+    if (key === 'gl' && !screenTransition.setMode(val ? 'gl' : 'css')) { toast(val ? '이 기기에서는 새 방식을 쓸 수 없어요' : '잠시 뒤에 다시 눌러 주세요'); return; }
+    setDisplay(key, val);
+    if (key === 'fill') fit(true);
+    mark(key === 'fill' ? `화면 꽉 채우기 ${val ? '켬' : '끔'} · 무대 높이 ${fitH}` : '전환 방식: ' + transitionModeText());
+    toast('바꿨어요');
+    paneBackup();
+  }));
   $('bkOut').onclick = () => saveFile(`luckybag-backup-${stamp()}.json`, store.exportBackup(), 'application/json');
   $('bkIn').onchange = async (ev) => {
     const f = ev.target.files[0]; if (!f) return;
@@ -1072,7 +1122,7 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   });
   navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch((err) => { mark('오프라인 저장 등록 실패: ' + (err && err.message)); });
 }
-window.__app = { store, APP_VER, diag, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */
+window.__app = { store, APP_VER, diag, display, fullHeight, screenTransition, get busy() { return busy; }, get guardUntil() { return guardUntil; }, get transitioning() { return screenTransition.busy; } }; /* 테스트·점검용 */
 </script>
 </body>
 </html>
