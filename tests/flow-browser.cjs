@@ -353,6 +353,36 @@ function eq(a, b, msg) { if (JSON.stringify(a) !== JSON.stringify(b)) throw new 
     await ctx.close();
   });
 
+  // iPad는 전환 영상을 틀기 시작한 직후 그림이 영상 시계보다 늦게 나온다 → 가려지기 전에 다음 화면이 잠깐 보였다(v38).
+  // 흉내: 전환 시작 뒤 0.4초 동안 영상 → 그림 올리기를 건너뛴다. 화면이 바뀌는 순간 캔버스 전체가 가려져 있어야 한다.
+  await check('전환 그림이 늦게 나와도 화면이 다 가려진 뒤에만 다음 화면으로 바뀜', async () => {
+    const { ctx, page } = await fresh();
+    await page.waitForFunction(() => window.__app.screenTransition.warmed, null, { timeout: 20000 });
+    await page.waitForFunction(() => performance.now() >= window.__app.guardUntil);
+    eq(await page.evaluate(() => window.__app.screenTransition.mode), 'gl', '직접 합성 방식');
+    await page.evaluate(() => {
+      const tr = window.__app.screenTransition, gl = tr.gl, W = tr.canvas.width, H = tr.canvas.height;
+      const upload = gl.texImage2D.bind(gl), run = tr.run.bind(tr), show = window.showStaff;
+      let t0 = 0;
+      tr.run = (fn) => { t0 = performance.now(); return run(fn); };
+      gl.texImage2D = (...a) => { if (t0 && performance.now() - t0 < 400) return; return upload(...a); };
+      window.__swap = null;
+      window.showStaff = (...a) => {
+        const buf = new Uint8Array(W * H * 4); gl.readPixels(0, 0, W, H, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+        let min = 255; for (let i = 3; i < buf.length; i += 4) if (buf[i] < min) min = buf[i];
+        window.__swap = { alphaMin: min };
+        return show(...a);
+      };
+      document.getElementById('scr-idle').click();
+    });
+    await page.waitForFunction(() => window.__swap && !window.__app.transitioning, null, { timeout: 8000 });
+    const r = await page.evaluate(() => ({ swap: window.__swap, last: window.__app.screenTransition.lastRun, staff: document.getElementById('scr-staff').classList.contains('on'), canvasOn: window.__app.screenTransition.canvas.classList.contains('is-active') }));
+    eq(r.swap.alphaMin >= 250, true, `화면이 바뀌는 순간 전부 가려짐(가림 최소값 ${r.swap.alphaMin})`);
+    eq(r.last.coverWait >= 100 && !r.last.coverForced, true, `그림을 기다렸다가 바꿈(${JSON.stringify(r.last)})`);
+    eq([r.staff, r.canvasOn], [true, false], '수량 화면으로 넘어가고 전환 층은 숨김');
+    await ctx.close();
+  });
+
   await check('오프라인에서 새로 고침해도 앱이 뜸 (Service Worker 캐시)', async () => {
     const { ctx, page } = await fresh();
     // 캐시가 다 차고 이 페이지를 Service Worker가 맡을 때까지 기다린 뒤 오프라인으로 바꾼다.

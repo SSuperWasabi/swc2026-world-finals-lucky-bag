@@ -114,6 +114,19 @@ class ScreenTransition {
       return true;
     } catch (e) { this.fallback('그리기 실패: ' + (e && e.message)); return false; }
   }
+  // 방금 그린 그림이 화면을 얼마나 가리는지 잰다: 가로줄 5개 + 세로줄 3개의 투명도 최소·최대(0~255).
+  // 전환 영상 61장 전부에서 화면 전체를 읽은 결과와 판정이 같다(11-12 확인). 그린 직후에만 부를 것.
+  probe() {
+    const gl = this.gl, W = this.canvas.width, H = this.canvas.height;
+    if (!this.probeRow) { this.probeRow = new Uint8Array(W * 4); this.probeCol = new Uint8Array(H * 4); }
+    let min = 255, max = 0;
+    const scan = (buf) => { for (let i = 3; i < buf.length; i += 4) { const a = buf[i]; if (a < min) min = a; if (a > max) max = a; } };
+    try {
+      for (const f of [0.02, 0.25, 0.5, 0.75, 0.98]) { gl.readPixels(0, Math.min(H - 1, Math.floor(f * H)), W, 1, gl.RGBA, gl.UNSIGNED_BYTE, this.probeRow); scan(this.probeRow); }
+      for (const f of [0.02, 0.5, 0.98]) { gl.readPixels(Math.min(W - 1, Math.floor(f * W)), 0, 1, H, gl.RGBA, gl.UNSIGNED_BYTE, this.probeCol); scan(this.probeCol); }
+    } catch (e) { return null; }
+    return { min, max };
+  }
   wipe() { if (this.gl) { try { this.gl.clear(this.gl.COLOR_BUFFER_BIT); } catch (e) { /* 무시 */ } } }
 
   // WebGL을 못 쓰게 되면 예전 방식으로 내려간다(전환이 아예 안 나오는 일은 없게)
@@ -157,6 +170,9 @@ class ScreenTransition {
     this.busy = true;
     const clock = this.clock, mode = this.mode;
     let covered = false, revealed = false, done = false, drawn = 0, lastT = -1;
+    // 직접 합성은 "영상 시계"가 아니라 "실제로 그려진 그림"으로 판단한다. iPad는 재생을 시작한 직후 그림이 시계보다 늦게 나와서,
+    // 시계만 보고 화면을 바꾸면 가려지기 전에 다음 화면이 잠깐 보였다(v38, 11-12 실기기).
+    let coverDue = 0, opaqueAt = 0, opaqueFrames = 0, coverWait = -1, coverForced = false, endedAt = 0, endWait = 0;
     const cover = () => { if (covered) return; covered = true; try { fn(); } catch (e) { console.warn('전환 중 동작 실패', e); } };
     const reveal = () => { if (revealed) return; revealed = true; this.revealed.splice(0).forEach(cb => { try { cb(); } catch (e) { /* 다음 */ } }); };
     const finish = () => {
@@ -170,21 +186,54 @@ class ScreenTransition {
       this.rewind();
       const t3 = performance.now();
       this.busy = false;
-      this.mark(`전환 정리(${mode === 'gl' ? `직접 합성 · 그림 ${drawn}장` : '예비'}): 숨김 ${Math.round(t2 - t1)}ms · 되감기 ${Math.round(t3 - t2)}ms`);
+      this.lastRun = { mode, drawn, coverWait, coverForced, endWait };
+      this.mark(`전환 정리(${mode === 'gl' ? `직접 합성 · 그림 ${drawn}장 · 가림 기다림 ${coverWait < 0 ? '없음' : coverWait + 'ms'}${coverForced ? '(확인 못 함)' : ''} · 끝 기다림 ${endWait}ms` : '예비'}): 숨김 ${Math.round(t2 - t1)}ms · 되감기 ${Math.round(t3 - t2)}ms`);
     };
     // 영상이 멈춰도 화면 이동은 반드시 끝낸다(행사장에서 앱이 갇히지 않게).
     const watchdog = setTimeout(finish, 4000);
-    // 화면을 바꾸는 시점은 영상 시각으로 정한다. 직접 합성 방식은 프레임마다 그리기도 여기서 한다.
-    const tick = (now, meta) => {
+    // 예비 방식: 화면을 바꾸는 시점을 영상 프레임 시각으로 정한다.
+    const tickCss = (now, meta) => {
       if (done) return;
-      if (this.mode !== mode) { finish(); return; }   // 도중에 예비 방식으로 내려갔으면 이번 전환은 바로 끝낸다
+      if (this.mode !== mode) { finish(); return; }   // 도중에 방식이 바뀌었으면 이번 전환은 바로 끝낸다
       const t = meta ? meta.mediaTime : clock.currentTime;
-      if (mode === 'gl' && t !== lastT) { lastT = t; if (this.draw()) drawn++; }   // 영상이 다음 장으로 넘어갔을 때만 다시 그린다
       if (t >= this.coverAt) cover();
       if (t >= this.revealAt) reveal();
-      if (!clock.ended) this.nextFrame(mode, clock, tick);
+      if (!clock.ended) this.nextFrame(mode, clock, tickCss);
     };
-    clock.onended = finish;
+    // 직접 합성: 화면을 그릴 차례마다 영상을 캔버스에 그리고, 그려진 그림을 재서 판단한다.
+    //   · 화면 바꾸기 = 영상 시계가 가림 구간에 들어섰고 + 그림이 실제로 전부 가렸고 + 그 그림이 화면에 나갈 시간(2번 그리기·50ms)이 지난 뒤
+    //   · 등장 시작   = 영상 시계가 걷힘 구간에 들어섰고 + 그림이 실제로 걷히기 시작한 뒤
+    //   · 정리       = 영상이 끝났고 + 그림이 실제로 전부 투명해진 뒤
+    //   그림이 끝내 확인되지 않아도 정해 둔 시간이 지나면 넘어간다(앱이 갇히지 않게).
+    const tickGl = (now) => {
+      if (done) return;
+      if (this.mode !== mode) { finish(); return; }
+      const t = clock.currentTime, ended = clock.ended;
+      // 영상이 다음 장으로 넘어갔을 때, 그리고 판정을 기다리는 동안에는 매번 다시 그린다
+      const fresh = t !== lastT || ended || (coverDue && !covered);
+      let drew = false;
+      if (fresh) { lastT = t; drew = this.draw(); if (drew) drawn++; }
+      // p: 잰 값 / null = 잴 수 없음(판정 없이 넘어간다) / undefined = 이번에는 재지 않음(기다린다)
+      const needProbe = drew && ((t >= this.coverAt && !covered && !opaqueAt) || (t >= this.revealAt && covered && !revealed) || ended);
+      const p = needProbe ? this.probe() : undefined;
+      if (t >= this.coverAt && !covered) {
+        if (!coverDue) coverDue = now;
+        if (!opaqueAt && (p === null || (p && p.min >= 250))) { opaqueAt = now; coverWait = Math.round(now - coverDue); }
+        if (opaqueAt) opaqueFrames++;
+        if (opaqueAt && opaqueFrames >= 3 && now - opaqueAt >= 50) cover();
+        else if (now - coverDue >= 450) { coverForced = !opaqueAt; if (coverWait < 0) coverWait = Math.round(now - coverDue); cover(); }
+      }
+      if (t >= this.revealAt && covered && !revealed && (p === null || (p && p.min < 250))) reveal();
+      if (ended) {
+        if (!endedAt) endedAt = now;
+        endWait = Math.round(now - endedAt);
+        if (p === null || (p && p.max <= 5) || endWait >= 400) { finish(); return; }
+      }
+      this.nextFrame(mode, clock, tickGl);
+    };
+    const tick = mode === 'gl' ? tickGl : tickCss;
+    if (mode !== 'gl') clock.onended = finish;
+    else clock.onended = () => setTimeout(finish, 600);   // 화면이 가려져 그리기가 멈춘 경우에도 끝나게
     if (this.videos.some(v => v.currentTime !== 0)) this.rewind();
     if (mode === 'gl') this.draw();   // 첫 프레임(전부 투명)을 먼저 그려 둔 뒤 보이게 한다
     this.show(true);

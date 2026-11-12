@@ -3,17 +3,17 @@
    ※ 앱을 고쳐 다시 배포할 때:
      1) CACHE 버전과 index.html의 APP_VER를 함께 올린다.
      2) node tools/update-sw-manifest.cjs 로 아래 목록의 지문을 다시 채운다(안 하면 tests/sw-manifest.test.cjs가 실패한다). */
-const CACHE = 'swc2026-world-finals-lucky-bag-v38';
+const CACHE = 'swc2026-world-finals-lucky-bag-v39';
 const PREFIX = 'swc2026-world-finals-lucky-bag-';
 /* ASSETS:BEGIN — [주소, 내용 지문(SHA-256)]. 지문은 tools/update-sw-manifest.cjs가 채운다. 손으로 고치지 않는다. */
 const ASSETS = [
-  ['./', 'dee719312e05f2639215c319b64c5fdefa27b1e8467be78722a7e59acd12c7af'],
-  ['./index.html', 'dee719312e05f2639215c319b64c5fdefa27b1e8467be78722a7e59acd12c7af'],
+  ['./', '538cca9c93d5c36ae541dd9baf98a21e77cb82213163bc091b20600cac577635'],
+  ['./index.html', '538cca9c93d5c36ae541dd9baf98a21e77cb82213163bc091b20600cac577635'],
   ['./manifest.webmanifest', '737fc83aecc52faaf409e60e53fd9534204ce04b4e45e595771a80b200f6d561'],
   ['./bag-engine.js', '01867ad4793f2d08bff665c9265f83a77f160143b2d8af882f84017b0b309647'],
   ['./bag-store.js', '775813a06b84ce1cbd15d063d35af5ddfd9f1feceffa951a0957c372ebc4da58'],
   ['./reveal.js', 'b919e11b352004fc77f8acc240494620606db4a4cfe7c13d16b8d923e96c5e2b'],
-  ['./transition.js', '27e12676b7075b1d79175c9ee38e0b34d6e453d43c6ed8ab1115adec7a5833ee'],
+  ['./transition.js', '53de7caff4b051ed5b5027fc3529b08a35cb9a1a6d6b2b6c689b3bbb0c49cda0'],
   ['./assets/main/main-intro.mp4', 'bd55114cf96f0cbd3fc7a1bc9f2c2f4b913d9e6d69b3fb9086f530ac123f8642'],
   ['./assets/main/main-loop.mp4', 'bcededa160933d9dd9c95ee27a08444e577de2bef83d6654032761d177e61284'],
   ['./assets/main/select-loop.mp4', '01fdb0d0be98a7893dc93e23d549f1197545c00dea3b38238f9c9c23cc26d29f'],
